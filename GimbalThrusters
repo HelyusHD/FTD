@@ -62,6 +62,8 @@ function GimbalThrusterInit(I)
                             local Count = I:Component_GetCount(type)
                             local Thrusters = {} -- list of all thrusters on this gimbal system
                             local DefaultThrusterRotation = Quaternion(0,0,0,0) -- direction the trusters face
+                            local CenterOfThrust = Vector3(0,0,0) -- if there are <1 thrusters, we threat them as onr thruster at this position
+                            local TotalMaxForce = 0 -- total thrust of all thrusters on this system
                             for i = 0, Count - 1 do
                                 local BlockInfo = I:Component_GetBlockInfo(type,i)
                                 if BlockInfo.Valid then
@@ -70,11 +72,27 @@ function GimbalThrusterInit(I)
                                         --DefaultThrusterRotation = MultiplyQuaternions(Rot2, BlockInfo.LocalRotation)
                                         LocalThrusterRotation = BlockInfo.LocalRotation
                                         DefaultThrusterRotation = Rot2 * LocalThrusterRotation
-                                        
+
+                                        local LocalPosition = BlockInfo.LocalPosition -- position in coordinate space of spinner 2
+                                        local MaxForce = I:Component_GetFloatLogic_1(type, blockIndex, 3)
+                                        CenterOfThrust = CenterOfThrust + LocalPosition * MaxForce
+                                        TotalMaxForce = TotalMaxThrust + MaxForce
                                     end
+                                end
+                                --checks if all thrusters face the same direction
+                                if DefaultThrusterRotation ~= Quaternion(0,0,0,0) then
+                                    if DefaultThrusterRotation_Last ~= nil then
+                                        if DefaultThrusterRotation_Last ~= DefaultThrusterRotation then
+                                            MyLog(I,10,"0:ERROR:   GimbalThrusterInit() Thrusters on system point in different directions")
+                                            ERROR = true
+                                        end
+                                    end
+                                    local DefaultThrusterRotation_Last = DefaultThrusterRotation
                                 end
                             end
                             if #Thrusters > 0 then
+                                CenterOfThrust = CenterOfThrust / #Thrusters
+
                                 local VecUp = Vector3(0,1,0) -- default axis of spinners
                                 local VecFd = Vector3(0,0,1) -- default direction of thrusters
                                 GimbalSystems[SubConstructIdentifier] ={                            -- key = gimbal spinner 1. order
@@ -82,6 +100,8 @@ function GimbalThrusterInit(I)
                                     Orientations = {Rot1 = Rot1, Rot2 = Rot2},                      -- rotations of spinners
                                     Thrusters = Thrusters,                                          -- indexes of thrusters on this gimbal system
                                     DefaultThrusterRotation = DefaultThrusterRotation,              -- default direction the trusters face
+                                    CenterOfThrust = CenterOfThrust                                 -- behaves like single thruster at this position in local space of spinner 2
+                                    TotalMaxForce = TotalMaxForce                                   -- max force of all thrusters combined
                                     Axis1 = Rot1*VecUp,                                             -- rotation axis of the 1. order spinner
                                     Axis2 = Rot2*VecUp,                                             -- rotation axis of the 2. order spinner which is placed on the 1. spinner
                                     DefaultThrustDirection = DefaultThrusterRotation*VecFd,         -- direction the truster faces by default
@@ -89,7 +109,7 @@ function GimbalThrusterInit(I)
                                 }
                                 MyLog(I, 20, "20:UPDATE:   in GimbalThrusterInit() found new GimbalSystem")
                             else
-                                MyLog(I, 10, "10:SYSTEM:   in GimbalThrusterInit() #Thrusters not > 0")
+                                MyLog(I, 10, "10:SYSTEM:   in GimbalThrusterInit() #Thrusters on a system not > 0")
                             end
                         else
                             ERROR = true
@@ -159,9 +179,8 @@ function Torque(I)
     local TotalTorque = Vector3(0,0,0)
     -- iterates all thrusters
     for SubConstructIdentifier, Data in pairs(GimbalSystems) do
-        for _, blockIndex in pairs(Data.Thrusters) do
-            local BlockInfo = I:Component_GetBlockInfo(9,blockIndex) -- BlockInfo of a used thruster
-            local LocalPositionRelativeToCom = BlockInfo.LocalPositionRelativeToCom
+            local SubConstructInfo = I:GetSubConstructInfo(SubConstructIdentifier)
+            local LocalPositionRelativeToCom = --SubConstructInfo.LocalPositionRelativeToCom +  * Data.CenterOfThrust
             local Drive = I:Component_GetFloatLogic_1(9, blockIndex, 0)
             local MaxForce = I:Component_GetFloatLogic_1(9, blockIndex, 3)
             local Torque = Vector3.Cross(LocalPositionRelativeToCom, BlockInfo.Forwards * Drive * MaxForce)
@@ -169,7 +188,6 @@ function Torque(I)
             -- stores produced torque of all thusters
             TorqueList[blockIndex].Torque = Torque
             TorqueList[blockIndex].blockIndex = blockIndex
-        end
     end
 
     -- iterates all thrusters
