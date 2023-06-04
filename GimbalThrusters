@@ -1,6 +1,9 @@
+
+
+
 SETTINGS = {SystemName = "gimbal"}
 
-DebugLevel = 20
+DebugLevel = 11
 
 
 -- returns lenght of list with not ordered indexes
@@ -64,11 +67,11 @@ function GimbalThrusterInit(I)
                             local DefaultThrusterRotation = Quaternion(0,0,0,0) -- direction the trusters face
                             local CenterOfThrust = Vector3(0,0,0) -- if there are <1 thrusters, we threat them as onr thruster at this position
                             local TotalMaxForce = 0 -- total thrust of all thrusters on this system
-                            for i = 0, Count - 1 do
-                                local BlockInfo = I:Component_GetBlockInfo(type,i)
+                            for blockIndex = 0, Count - 1 do
+                                local BlockInfo = I:Component_GetBlockInfo(type,blockIndex)
                                 if BlockInfo.Valid then
                                     if SubConChdId == BlockInfo.SubConstructIdentifier then
-                                        table.insert(Thrusters, i)
+                                        table.insert(Thrusters, blockIndex)
                                         --DefaultThrusterRotation = MultiplyQuaternions(Rot2, BlockInfo.LocalRotation)
                                         LocalThrusterRotation = BlockInfo.LocalRotation
                                         DefaultThrusterRotation = Rot2 * LocalThrusterRotation
@@ -76,7 +79,7 @@ function GimbalThrusterInit(I)
                                         local LocalPosition = BlockInfo.LocalPosition -- position in coordinate space of spinner 2
                                         local MaxForce = I:Component_GetFloatLogic_1(type, blockIndex, 3)
                                         CenterOfThrust = CenterOfThrust + LocalPosition * MaxForce
-                                        TotalMaxForce = TotalMaxThrust + MaxForce
+                                        TotalMaxForce = TotalMaxForce + MaxForce
                                     end
                                 end
                                 --checks if all thrusters face the same direction
@@ -100,14 +103,14 @@ function GimbalThrusterInit(I)
                                     Orientations = {Rot1 = Rot1, Rot2 = Rot2},                      -- rotations of spinners
                                     Thrusters = Thrusters,                                          -- indexes of thrusters on this gimbal system
                                     DefaultThrusterRotation = DefaultThrusterRotation,              -- default direction the trusters face
-                                    CenterOfThrust = CenterOfThrust                                 -- behaves like single thruster at this position in local space of spinner 2
-                                    TotalMaxForce = TotalMaxForce                                   -- max force of all thrusters combined
+                                    CenterOfThrust = CenterOfThrust,                                -- behaves like single thruster at this position in local space of spinner 2
+                                    TotalMaxForce = TotalMaxForce,                                  -- max force of all thrusters combined
                                     Axis1 = Rot1*VecUp,                                             -- rotation axis of the 1. order spinner
                                     Axis2 = Rot2*VecUp,                                             -- rotation axis of the 2. order spinner which is placed on the 1. spinner
                                     DefaultThrustDirection = DefaultThrusterRotation*VecFd,         -- direction the truster faces by default
                                     LocalThrusterRotation = LocalThrusterRotation,                  -- rotation of thruster in spinner2 coordinate space
                                     CommandsLast = {                                                -- command and respond of last frame (is updated in AimThruster())
-                                        DesiredDirection = Vector3(0,0,1), 
+                                        DesiredDirection = Vector3(0,0,0), 
                                         TotalRotation =  Quaternion(0,0,0,1)
                                     }
                                 }
@@ -178,48 +181,68 @@ end
 
 
 function Torque(I)
+    local threhold = 100
+    MyLog(I, 100, "100:RUNNING:   Torque()")
     local Corrections = {}
     local TorqueList = {}
-    local TotalTorque = Vector3(0,0,0)
+    local TotalTorque = Vector3(threhold + 1,0,0)
     local CenOfThstRelToCom = Vector3(0,0,0)
-    -- calculates the total torque of last frame
-    for SubConstructIdentifier, Data in pairs(GimbalSystems) do
+
+    local MaxIterations = 20 -- how often should we try to fix the torque?
+    
+    local i = 0
+    while TotalTorque.magnitude > threhold and (i < MaxIterations -1)  do
+        MyLog(I,12,"12:UPDATE   TotalTorque.magnitude = "..TotalTorque.magnitude)
+        i = i+1
+        TotalTorque = Vector3(0,0,0)
+        -- calculates the total torque
+        for SubConstructIdentifier, Data in pairs(GimbalSystems) do
             local SubConstructInfo = I:GetSubConstructInfo(SubConstructIdentifier)
             local CommandsLast = Data.CommandsLast
+            local DesiredDirectionLast = CommandsLast.DesiredDirection
             CenOfThstRelToCom = SubConstructInfo.LocalPositionRelativeToCom + (CommandsLast.TotalRotation * Data.CenterOfThrust)
-            local Drive = I:Component_GetFloatLogic_1(9, blockIndex, 0)
+            local Drive = DesiredDirectionLast.magnitude
             local MaxForce = Data.TotalMaxForce
-            local Torque = Vector3.Cross(CenOfThstRelToCom, CommandsLast.DesiredDirection * Drive * MaxForce)
+            local Torque = Vector3.Cross(CenOfThstRelToCom, DesiredDirectionLast * Drive * MaxForce)
             TotalTorque = TotalTorque + Torque
             -- stores produced torque of all thusters
-            TorqueList[blockIndex].Torque = Torque
-            TorqueList[blockIndex].blockIndex = blockIndex
-    end
+            if TorqueList[SubConstructIdentifier] == nil then TorqueList[SubConstructIdentifier] = {} end
+            TorqueList[SubConstructIdentifier].Torque = Torque
+            TorqueList[SubConstructIdentifier].SubConstructIdentifier = SubConstructIdentifier -- sorting messes with keys so I store the Id somewhere else
+        end
+        MyLog(I,12,"12:UPDATE   total torque = "..tostring(TotalTorque))
 
-    -- iterates all thrusters
-    for SubConstructIdentifier, Data in pairs(GimbalSystems) do
-            local BestCorrectionDirection = Vector3.Cross(TotalTorque, CenOfThstRelToCom).normalized -- sign??? !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        -- iterates all systems
+        for SubConstructIdentifier, Data in pairs(GimbalSystems) do
+            local BestCorrectionDirection = -Vector3.Cross(TotalTorque, CenOfThstRelToCom).normalized -- sign??? !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             local MaxTorqueReductionPotential = Vector3.Cross(CenOfThstRelToCom, BestCorrectionDirection)
             -- max new contribution to the reduction of the total torque:
-            TorqueList[blockIndex].MaxTorqueReduction = MaxTorqueReductionPotential - TorqueList[blockIndex].Torque
-            TorqueList[blockIndex].BestCorrectionDirection = BestCorrectionDirection
-    end
-
-    local i = 0
-    local SystemCount = #TorqueList
-    while TotalTorque.magnitude > 100 and (i < SystemCount -1)  do
-        i = i+1
-        table.sort(TorqueList, function(a.MaxTorqueReduction, b.MaxTorqueReduction) return a > b end) -- TorqueList[1] is the first thruster to adress to fix torque
-        local TorqueInfo = TorqueList[1]
-        local MaxTorqueReductionPotential = TorqueInfo.MaxTorqueReductionPotential
-        if TotalTorque < MaxTorqueReductionPotential then
-            Corrections[TorqueInfo.blockIndex] = TorqueInfo.BestCorrectionDirection * TotalTorque.magnitude / MaxTorqueReductionPotential.magnitude
-        else
-            TotalTorque = TotalTorque - MaxTorqueReductionPotential
-            Corrections[TorqueInfo.blockIndex] = TorqueInfo.BestCorrectionDirection
+            TorqueList[SubConstructIdentifier].MaxTorqueReduction = MaxTorqueReductionPotential - TorqueList[SubConstructIdentifier].Torque
+            TorqueList[SubConstructIdentifier].BestCorrectionDirection = BestCorrectionDirection
         end
+
+        -- uses best suited thruster 
+        local DesiredDirection = Vector3(0,0,0)
+        table.sort(TorqueList, function(a, b) return a.MaxTorqueReduction.magnitude > b.MaxTorqueReduction.magnitude end) -- TorqueList[1] is the first thruster to adress to fix torque
+        local TorqueInfo = TorqueList[1]
+        local MaxTorqueReduction = TorqueInfo.MaxTorqueReduction
+        MyLog(I,11,"11:UPDATE   iteration "..i.." System "..TorqueInfo.SubConstructIdentifier.." with MaxTorqueReduction = "..tostring(MaxTorqueReduction))
+        if TotalTorque.magnitude < MaxTorqueReduction.magnitude then
+            DesiredDirection = TorqueInfo.BestCorrectionDirection * TotalTorque.magnitude / MaxTorqueReduction.magnitude
+        else
+            TotalTorque = TotalTorque - MaxTorqueReduction
+            DesiredDirection = TorqueInfo.BestCorrectionDirection
+        end
+        local SubConstructIdentifier = TorqueInfo.SubConstructIdentifier
+        Corrections[SubConstructIdentifier] = DesiredDirection
+
+        -- updates orientations
+        GimbalSystems[SubConstructIdentifier].CommandsLast = { -- we change this in order to re sort the list
+            DesiredDirection = DesiredDirection,
+            TotalRotation = Quaternion.FromToRotation(GimbalSystems[SubConstructIdentifier].DefaultThrustDirection, DesiredDirection) -- total rotation performed by the spinners
+        }
     end
-    return Corrections
+    return Corrections -- a list of vectors
 end
 
 
@@ -232,10 +255,22 @@ function GimbalThrusterUpdate(I)
     local RightRequest = I:GetPropulsionRequest(8)
     local DesiredDirection = Vector3(RightRequest,UpRequest,ForwardRequest)
 
-    Torque(I)
+    local Corrections = Torque(I)
+    MyLog(I,10,"10:UPDATE:   "..#Corrections.." corrections calculated")
 
     for SubConstructIdentifier, Data in pairs(GimbalSystems) do
-        AimThruster(I,SubConstructIdentifier,DesiredDirection)
+        local corrected = false
+        for CorrectionSubConstructIdentifier, BestCorrectionDirection in pairs(Corrections) do
+            if SubConstructIdentifier == CorrectionSubConstructIdentifier then
+                MyLog(I,10,"10:UPDATE:   corrected spinner "..SubConstructIdentifier.." in direction "..tostring(BestCorrectionDirection))
+                AimThruster(I,SubConstructIdentifier,BestCorrectionDirection)
+                corrected = true
+            end
+        end
+        if not corrected then
+            MyLog(I,50,"50:UPDATE:   aimed spinner "..SubConstructIdentifier.." in direction "..tostring(DesiredDirection))
+            AimThruster(I,SubConstructIdentifier,DesiredDirection)
+        end
     end
 end
 
@@ -272,12 +307,12 @@ function AimThruster(I,SubConstructIdentifier,DesiredDirection)
     -- controls thruster
     local Drive = DesiredDirection.magnitude
     for _, blockIndex in pairs(Data.Thrusters) do
-        I:Component_SetFloatLogic_2(9, blockIndex, 0, Drive, 1, 1)
+        I:Component_SetFloatLogic_2(9, blockIndex, 0, Drive * 4, 1, 1)
     end
 
     Data.CommandsLast = {
-        DesiredDirection = DesiredDirection
-        TotalRotation = Quaternion.SetFromToRotation(DefaultThrustDirection, DesiredDirection); -- total rotation performed by the spinners
+        DesiredDirection = DesiredDirection,
+        TotalRotation = Quaternion.FromToRotation(DefaultThrustDirection, DesiredDirection) -- total rotation performed by the spinners
     }
 end
 
