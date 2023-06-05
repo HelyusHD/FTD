@@ -3,7 +3,7 @@
 
 SETTINGS = {SystemName = "gimbal"}
 
-DebugLevel = 11
+DebugLevel = 12
 
 
 -- returns lenght of list with not ordered indexes
@@ -111,7 +111,9 @@ function GimbalThrusterInit(I)
                                     LocalThrusterRotation = LocalThrusterRotation,                  -- rotation of thruster in spinner2 coordinate space
                                     CommandsLast = {                                                -- command and respond of last frame (is updated in AimThruster())
                                         DesiredDirection = Vector3(0,0,0), 
-                                        TotalRotation =  Quaternion(0,0,0,1)
+                                        TotalRotation =  Quaternion(0,0,0,1),
+                                        CenOfThstRelToCom = Vector3(0,0,0),
+                                        Torque = Vector3(0,0,0)
                                     }
                                 }
                                 MyLog(I, 20, "20:UPDATE:   in GimbalThrusterInit() found new GimbalSystem")
@@ -180,67 +182,65 @@ end
 
 
 
-function Torque(I)
-    local threhold = 100
+function Torque(I,TorqueCommand)
+    local threhold = 1
     MyLog(I, 100, "100:RUNNING:   Torque()")
     local Corrections = {}
-    local TorqueList = {}
-    local TotalTorque = Vector3(threhold + 1,0,0)
-    local CenOfThstRelToCom = Vector3(0,0,0)
+    local TotalTorque = -TorqueCommand
 
-    local MaxIterations = 20 -- how often should we try to fix the torque?
-    
+    -- calculates the total torque
+    for SubConstructIdentifier, Data in pairs(GimbalSystems) do
+        local SubConstructInfo = I:GetSubConstructInfo(Data.SecAxisId)
+        local CommandsLast = Data.CommandsLast
+        local DesiredDirectionLast = CommandsLast.DesiredDirection
+        local CenOfThstRelToCom = SubConstructInfo.LocalPositionRelativeToCom + (CommandsLast.TotalRotation * Data.CenterOfThrust)
+        local Drive = DesiredDirectionLast.magnitude
+        local MaxForce = Data.TotalMaxForce
+        local Torque = Vector3.Cross(CenOfThstRelToCom, DesiredDirectionLast * Drive * MaxForce)
+        TotalTorque = TotalTorque + Torque
+        -- stores produced torque of all thusters
+        GimbalSystems[SubConstructIdentifier].CommandsLast.CenOfThstRelToCom = CenOfThstRelToCom
+        GimbalSystems[SubConstructIdentifier].CommandsLast.Torque = Torque
+    end
+    MyLog(I,12,"12:UPDATE   total torque = "..tostring(TotalTorque))
+
+    local MaxIterations = 20 -- how often should we try to fix the torque? 
     local i = 0
     while TotalTorque.magnitude > threhold and (i < MaxIterations -1)  do
-        MyLog(I,12,"12:UPDATE   TotalTorque.magnitude = "..TotalTorque.magnitude)
+        MyLog(I,12,"13:UPDATE   TotalTorque.magnitude = "..TotalTorque.magnitude)
         i = i+1
-        TotalTorque = Vector3(0,0,0)
-        -- calculates the total torque
-        for SubConstructIdentifier, Data in pairs(GimbalSystems) do
-            local SubConstructInfo = I:GetSubConstructInfo(SubConstructIdentifier)
-            local CommandsLast = Data.CommandsLast
-            local DesiredDirectionLast = CommandsLast.DesiredDirection
-            CenOfThstRelToCom = SubConstructInfo.LocalPositionRelativeToCom + (CommandsLast.TotalRotation * Data.CenterOfThrust)
-            local Drive = DesiredDirectionLast.magnitude
-            local MaxForce = Data.TotalMaxForce
-            local Torque = Vector3.Cross(CenOfThstRelToCom, DesiredDirectionLast * Drive * MaxForce)
-            TotalTorque = TotalTorque + Torque
-            -- stores produced torque of all thusters
-            if TorqueList[SubConstructIdentifier] == nil then TorqueList[SubConstructIdentifier] = {} end
-            TorqueList[SubConstructIdentifier].Torque = Torque
-            TorqueList[SubConstructIdentifier].SubConstructIdentifier = SubConstructIdentifier -- sorting messes with keys so I store the Id somewhere else
-        end
-        MyLog(I,12,"12:UPDATE   total torque = "..tostring(TotalTorque))
 
+        local TorqueList = {}
         -- iterates all systems
         for SubConstructIdentifier, Data in pairs(GimbalSystems) do
-            local BestCorrectionDirection = -Vector3.Cross(TotalTorque, CenOfThstRelToCom).normalized -- sign??? !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            local MaxTorqueReductionPotential = Vector3.Cross(CenOfThstRelToCom, BestCorrectionDirection)
-            -- max new contribution to the reduction of the total torque:
-            TorqueList[SubConstructIdentifier].MaxTorqueReduction = MaxTorqueReductionPotential - TorqueList[SubConstructIdentifier].Torque
-            TorqueList[SubConstructIdentifier].BestCorrectionDirection = BestCorrectionDirection
+            local CommandsLast = Data.CommandsLast
+            local CenOfThstRelToCom = CommandsLast.CenOfThstRelToCom -- this changes a little bit, when thrusters are rotated, but I ignore this small error
+            local TotalMaxForce = Data.TotalMaxForce
+            local BestCorrection = Vector3.Cross(TotalTorque, CenOfThstRelToCom) / (CenOfThstRelToCom.magnitude ^ 2) / TotalMaxForce   -- what a thruster should do to reduce thrust as best as possible
+            table.insert(TorqueList, {
+                BestCorrection = BestCorrection,                                                                                            -- max new contribution to the reduction of the total torque
+                SubConstructIdentifier = SubConstructIdentifier,
+                TorqueReduction = (Vector3.Cross(CenOfThstRelToCom, BestCorrection * TotalMaxForce) - CommandsLast.Torque)  -- the effect this would have the craft | used to sort the list
+            })
         end
 
-        -- uses best suited thruster 
-        local DesiredDirection = Vector3(0,0,0)
-        table.sort(TorqueList, function(a, b) return a.MaxTorqueReduction.magnitude > b.MaxTorqueReduction.magnitude end) -- TorqueList[1] is the first thruster to adress to fix torque
+        -- uses best suited thruster
+        table.sort(TorqueList, function(a, b) return a.TorqueReduction.magnitude > b.TorqueReduction.magnitude end) -- TorqueList[1] is the first thruster to adress to fix torque
         local TorqueInfo = TorqueList[1]
-        local MaxTorqueReduction = TorqueInfo.MaxTorqueReduction
-        MyLog(I,11,"11:UPDATE   iteration "..i.." System "..TorqueInfo.SubConstructIdentifier.." with MaxTorqueReduction = "..tostring(MaxTorqueReduction))
-        if TotalTorque.magnitude < MaxTorqueReduction.magnitude then
-            DesiredDirection = TorqueInfo.BestCorrectionDirection * TotalTorque.magnitude / MaxTorqueReduction.magnitude
-        else
-            TotalTorque = TotalTorque - MaxTorqueReduction
-            DesiredDirection = TorqueInfo.BestCorrectionDirection
-        end
         local SubConstructIdentifier = TorqueInfo.SubConstructIdentifier
-        Corrections[SubConstructIdentifier] = DesiredDirection
+        local TorqueReduction = TorqueInfo.TorqueReduction
+        local Data = GimbalSystems[SubConstructIdentifier]
+        local CenOfThstRelToCom = Data.CommandsLast.CenOfThstRelToCom
+
+        local BestCorrection = TorqueInfo.BestCorrection -- command vector for the system
+        local Torque = Vector3.Cross(CenOfThstRelToCom, BestCorrection)
+        TotalTorque = TotalTorque + TorqueReduction
+
+        MyLog(I,11,"11:UPDATE   iteration "..i.." System "..SubConstructIdentifier.." with command = "..tostring(BestCorrection).." TotalTorque = "..tostring(TotalTorque))
+        Corrections[SubConstructIdentifier] = BestCorrection
 
         -- updates orientations
-        GimbalSystems[SubConstructIdentifier].CommandsLast = { -- we change this in order to re sort the list
-            DesiredDirection = DesiredDirection,
-            TotalRotation = Quaternion.FromToRotation(GimbalSystems[SubConstructIdentifier].DefaultThrustDirection, DesiredDirection) -- total rotation performed by the spinners
-        }
+        GimbalSystems[SubConstructIdentifier].CommandsLast.Torque = Torque -- we change this in order to re sort the list
     end
     return Corrections -- a list of vectors
 end
@@ -255,15 +255,15 @@ function GimbalThrusterUpdate(I)
     local RightRequest = I:GetPropulsionRequest(8)
     local DesiredDirection = Vector3(RightRequest,UpRequest,ForwardRequest)
 
-    local Corrections = Torque(I)
-    MyLog(I,10,"10:UPDATE:   "..#Corrections.." corrections calculated")
+    local Corrections = Torque(I,Vector3(0,0,0)) -- vector represents torque command from ai
+    MyLog(I,10,"10:UPDATE:   "..ListLenght(Corrections).." corrections calculated")
 
     for SubConstructIdentifier, Data in pairs(GimbalSystems) do
         local corrected = false
-        for CorrectionSubConstructIdentifier, BestCorrectionDirection in pairs(Corrections) do
+        for CorrectionSubConstructIden in pairs(Corrections) do
             if SubConstructIdentifier == CorrectionSubConstructIdentifier then
-                MyLog(I,10,"10:UPDATE:   corrected spinner "..SubConstructIdentifier.." in direction "..tostring(BestCorrectionDirection))
-                AimThruster(I,SubConstructIdentifier,BestCorrectionDirection)
+                MyLog(I,10,"10:UPDATE:   corrected spinner "..SubConstructIdentifier.." in direction "..Corrections[SubConstructIdentifier])
+                AimThruster(I,SubConstructIde)
                 corrected = true
             end
         end
