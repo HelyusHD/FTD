@@ -225,6 +225,8 @@ function Torque(I,TorqueCommand)
     end
     local MaxIterations = 2 -- how often should we try to fix the torque? 
     local i = 0
+
+
     while TotalTorque.magnitude > threhold and (i <= MaxIterations -1)  do
         MyLog(I,12,"12:UPDATE   total torque:"..tostring(TotalTorque).."  TotalTorque.magnitude:"..TotalTorque.magnitude)
         i = i+1
@@ -266,8 +268,10 @@ function Torque(I,TorqueCommand)
 
         -- updates orientations
         GimbalSystems[SubConstructIdentifier].CommandsLast.Torque = Torque -- we change this in order to re sort the list
-        GimbalSystems[SubConstructIdentifier].CommandsLast.DesiredDirection = BestCorrection
+        GimbalSystems[SubConstructIdentifier].CommandsLast.DesiredDirection = 
     end
+
+    
     return Corrections -- a list of vectors
 end
 
