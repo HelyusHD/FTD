@@ -1,7 +1,5 @@
--- this is a library by HelyusHD for the video game From The Depths
-
-
-
+LegCodeWord = "WSLeg"
+DebugLevel = 50
 
 
 
@@ -13,8 +11,11 @@ function FindAllSubconstructs(I, CodeWord)
     local SubconstructsCount = I:GetAllSubconstructsCount()
     for index = 0, SubconstructsCount do
         local SubConstructIdentifier = I:GetSubConstructIdentifier(index)
-        if string.find(I:GetSubConstructInfo(SubConstructIdentifier).CustomName, CodeWord) then
-            table.insert(ChosenSubconstructs, SubConstructIdentifier)
+        local CustomName = I:GetSubConstructInfo(SubConstructIdentifier).CustomName
+        if CustomName ~= nil then
+            if string.find(CustomName, CodeWord) then
+                table.insert(ChosenSubconstructs, SubConstructIdentifier)
+            end
         end
     end
     return ChosenSubconstructs
@@ -41,7 +42,7 @@ function FindParentsOfSubconstruct(I,SubConstructIdentifier, Depths)
 end
 
 
--- output LIST: {{SubConstructIdentifier1, {ParentOf1}}, {SubConstructIdentifier2, {ParentOf2}}, ...}
+-- output LIST: {{SubConstructIdentifier1, {ParentsOf1}}, {SubConstructIdentifier2, {ParentsOf2}}, ...}
 -- dependencies: FindAllSubconstructs(); FindParentsOfSubconstruct()
 -- useful combination of FindAllSubconstructs() and FindParentsOfSubconstruct()
 -- you can define structures where 1 spinner defines the setup
@@ -49,9 +50,39 @@ end
 function FindAllStructures(I, CodeWord, Depths)
     local Structures = {}
     local AllSubconstructs = FindAllSubconstructs(I, CodeWord)
+    MyLog(I,50,"UPDATE:   found "..#AllSubconstructs.." Legs")
     for key, SubConstructIdentifier in pairs(AllSubconstructs) do
         table.insert(Structures, {SubConstructIdentifier, FindParentsOfSubconstruct(I,SubConstructIdentifier, Depths)})
     end
     return Structures
 end
 
+
+function InitWaterSkimmer(I)
+    init = true
+    WSLegs = FindAllStructures(I, LegCodeWord, 3) -- list of all the legs of the water skimmer
+end
+
+
+function WaterSkimmerUpdate()
+    for key, Leg in pairs(WSLegs) do
+        local Spinner1 = WSLegs[1]
+        local Parents = WSLegs[2]
+    end
+end
+
+function Update(I)
+    if init == nil then
+        InitWaterSkimmer(I)
+    else
+
+
+    end
+end
+
+
+function MyLog(I,priority,message)
+    if priority <= DebugLevel then
+        I:Log(message)
+    end
+end
