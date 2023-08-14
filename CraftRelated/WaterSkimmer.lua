@@ -10,6 +10,8 @@ function LegCurve(h,a)
 end
 
 
+-- finds angles in a triangle. one corner is in the origin, one corner is at (x,y) and 2 side lengt are given as well (a and b)
+-- is used to find angles of pinners to move end of leg at position (x,y)
 function GetLegAngle(x,y,a,b)
     local alpha = math.acos((a^2+x^2+y^2-b^2)/(2*a*math.sqrt(x^2+y^2)))
     local betha = -math.acos((a^2+b^2-x^2-y^2)/(2*a*b))
@@ -17,14 +19,13 @@ function GetLegAngle(x,y,a,b)
 end
 
 
-
+-- inverts the order of a table
 function ReverseTable(tab)
     for i = 1,  math.floor(#tab/2), 1 do
         tab[i], tab[#tab-i+1] = tab[#tab-i+1], tab[i]
     end
     return tab
 end
-
 
 
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
@@ -81,6 +82,8 @@ function FindAllStructures(I, CodeWord, Depths)
 end
 
 
+-- loads all the spinners of all the legs in a list
+-- calculates lenght of the segments legs are made out of
 function InitWaterSkimmer(I)
     init = true
     WSLegs = FindAllStructures(I, LegCodeWord, 5) -- list of all the legs of the water skimmer
@@ -102,6 +105,7 @@ function InitWaterSkimmer(I)
 end
 
 
+-- this runs once init was successfull and it controls the legs
 function WaterSkimmerUpdate(I)
     local ConstructRoll = I:GetConstructRoll()
     local ConstructPitch = I:GetConstructPitch()
@@ -143,6 +147,7 @@ function WaterSkimmerUpdate(I)
         end
     end
 end
+
 
 function Update(I)
     if init == nil then
