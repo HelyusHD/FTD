@@ -2,46 +2,29 @@ LegCodeWord = "WSLeg"
 DebugLevel = 50
 
 
+-- defines the movement of the fod of the leg in relation to the hight of the fod
+function LegCurve(h,a)
+    local x = (-h/40)^2 + a * 1.2
+    local y = -h
+    return {x=x, y=y}
+end
 
-local function ReverseTable(tab)
+
+function GetLegAngle(x,y,a,b)
+    local alpha = math.acos((a^2+x^2+y^2-b^2)/(2*a*math.sqrt(x^2+y^2)))
+    local betha = -math.acos((a^2+b^2-x^2-y^2)/(2*a*b))
+    return {alpha=alpha, betha=betha}
+end
+
+
+
+function ReverseTable(tab)
     for i = 1,  math.floor(#tab/2), 1 do
         tab[i], tab[#tab-i+1] = tab[#tab-i+1], tab[i]
     end
     return tab
 end
 
-
--- Function to approximate inverse of hight(alpha)
--- Parameters: h - the desired y(x) value, a - parameter a, b - parameter b
-function approximateInverseFunction(h, a, b)
-    local function hight(alpha)
-        return math.cos(alpha) * a + math.cos(alpha * math.abs(math.cos(alpha / 2))) * b
-    end
-
-    -- Bisection method to approximate the inverse
-    local epsilon = 1e-1 -- Desired accuracy
-    local maxIterations = 20
-    local left = -math.pi
-    local right = 0
-    local mid = (left + right) / 2
-
-    for _ = 1, maxIterations do
-        local value = hight(mid)
-        local diff = value - h
-
-        if math.abs(diff) < epsilon then
-            return mid
-        elseif diff < 0 then
-            left = mid
-        else
-            right = mid
-        end
-
-        mid = (left + right) / 2
-    end
-
-    return nil -- No solution found within the specified iterations
-end
 
 
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
@@ -126,7 +109,6 @@ function WaterSkimmerUpdate(I)
         local Parents = Leg.Parents
         local LocalLegPosition = I:GetSubConstructInfo(Parents[1]).LocalPosition
 
-        --local h = -I:GetSubConstructInfo(Parents[1]).Position.y - 4
         local Pos1 = I:GetSubConstructInfo(Parents[1]).Position
         local Pos5 = I:GetSubConstructInfo(Parents[5]).Position
         local h = 0
@@ -137,24 +119,28 @@ function WaterSkimmerUpdate(I)
         end
         local Lenght1 = Leg.InitialLegPieceVector[2].magnitude
         local Lenght2 = Leg.InitialLegPieceVector[3].magnitude
-        if h > Lenght1 - Lenght2 - 1 then h = Lenght1 - Lenght2 - 1 end
-        if h < -Lenght1 - Lenght2 + 1 then h = -Lenght1 - Lenght2 + 1 end
-        local alpha = approximateInverseFunction(h, Lenght1, -Lenght2)
-        local betha = alpha * math.abs(math.cos(alpha/2))
-        alpha = alpha * 180 / math.pi
-        betha = betha * 180 / math.pi
 
-        I:SetSpinBlockRotationAngle(Parents[1], 0)
-        I:SetSpinBlockRotationAngle(Parents[2], -alpha)
-        I:SetSpinBlockRotationAngle(Parents[3], alpha + betha)
-        if LocalLegPosition.x < 0 then
-            I:SetSpinBlockRotationAngle(Parents[4], -betha - ConstructRoll)
-            I:SetSpinBlockRotationAngle(Parents[5], ConstructPitch)
-        else
-            I:SetSpinBlockRotationAngle(Parents[4], -betha + ConstructRoll)
-            I:SetSpinBlockRotationAngle(Parents[5], -ConstructPitch)
+
+        local Pos = LegCurve(h,Lenght2)
+        local Angles = GetLegAngle(Pos.x,Pos.y,Lenght1,Lenght2)
+        if (Lenght1 + Lenght2)*0.95 > math.sqrt(Pos.x^2+Pos.y^2) then
+            local alpha = math.pi/2+math.atan(Pos.y/Pos.x)-Angles.alpha
+            local betha = Angles.betha
+            alpha = alpha * 180 / math.pi
+            betha = betha * 180 / math.pi
+
+            I:SetSpinBlockRotationAngle(Parents[1], 0)
+            I:SetSpinBlockRotationAngle(Parents[2], alpha)
+            I:SetSpinBlockRotationAngle(Parents[3], betha)
+            if LocalLegPosition.x < 0 then
+                I:SetSpinBlockRotationAngle(Parents[4], -alpha-betha - ConstructRoll)
+                I:SetSpinBlockRotationAngle(Parents[5], ConstructPitch)
+            else
+                I:SetSpinBlockRotationAngle(Parents[4], -alpha-betha + ConstructRoll)
+                I:SetSpinBlockRotationAngle(Parents[5], -ConstructPitch)
+            end
+            I:SetSpinBlockRotationAngle(Leg.DefiningSCI, 0)
         end
-        I:SetSpinBlockRotationAngle(Leg.DefiningSCI, 0)
     end
 end
 
