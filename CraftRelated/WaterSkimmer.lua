@@ -124,18 +124,21 @@ function WaterSkimmerUpdate(I)
     local ConstructPitch = I:GetConstructPitch()
     for key, Leg in pairs(WSLegs) do
         local Parents = Leg.Parents
-        local LegInfo = I:GetSubConstructInfo(Parents[1])
-        --local LocalLegPosition = LegInfo.LocalPosition
         local LocalLegPosition = I:GetSubConstructInfo(Parents[1]).LocalPosition
-        local LegPosition = LegInfo.Position
 
-
-
-        local h = -LegPosition.y - 4
+        --local h = -I:GetSubConstructInfo(Parents[1]).Position.y - 4
+        local Pos1 = I:GetSubConstructInfo(Parents[1]).Position
+        local Pos5 = I:GetSubConstructInfo(Parents[5]).Position
+        local h = 0
+        if LocalLegPosition.x > 0 then
+            h = -Pos1.y - (Vector3(Pos1.x,0,Pos1.z) - Vector3(Pos5.x,0,Pos5.z)).magnitude * math.cos(ConstructRoll / 180 * math.pi) * math.sin(ConstructRoll / 180 * math.pi) - 4
+        else
+            h = -Pos1.y - (Vector3(Pos1.x,0,Pos1.z) - Vector3(Pos5.x,0,Pos5.z)).magnitude * math.cos(ConstructRoll / 180 * math.pi) * math.sin(-ConstructRoll / 180 * math.pi) - 4
+        end
         local Lenght1 = Leg.InitialLegPieceVector[2].magnitude
         local Lenght2 = Leg.InitialLegPieceVector[3].magnitude
         if h > Lenght1 - Lenght2 - 1 then h = Lenght1 - Lenght2 - 1 end
-        if h < -Lenght1 - Lenght2 + 5 then h = -Lenght1 - Lenght2 + 1 end
+        if h < -Lenght1 - Lenght2 + 1 then h = -Lenght1 - Lenght2 + 1 end
         local alpha = approximateInverseFunction(h, Lenght1, -Lenght2)
         local betha = alpha * math.abs(math.cos(alpha/2))
         alpha = alpha * 180 / math.pi
@@ -145,10 +148,10 @@ function WaterSkimmerUpdate(I)
         I:SetSpinBlockRotationAngle(Parents[2], -alpha)
         I:SetSpinBlockRotationAngle(Parents[3], alpha + betha)
         if LocalLegPosition.x < 0 then
-            I:SetSpinBlockRotationAngle(Parents[4], -betha + ConstructRoll)
+            I:SetSpinBlockRotationAngle(Parents[4], -betha - ConstructRoll)
             I:SetSpinBlockRotationAngle(Parents[5], ConstructPitch)
         else
-            I:SetSpinBlockRotationAngle(Parents[4], -betha - ConstructRoll)
+            I:SetSpinBlockRotationAngle(Parents[4], -betha + ConstructRoll)
             I:SetSpinBlockRotationAngle(Parents[5], -ConstructPitch)
         end
         I:SetSpinBlockRotationAngle(Leg.DefiningSCI, 0)
