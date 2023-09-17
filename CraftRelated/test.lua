@@ -6,7 +6,7 @@ DebugLevel = 50
 function LegCurve(h,a)
     local x = (-h/40)^2 + math.abs(h)/4 + a * 0.7
     local y = -h
-    return {x=x, y=y}
+    return Vector3(x,y,0)
 end
 
 
@@ -109,6 +109,7 @@ end
 function WaterSkimmerUpdate(I)
     local ConstructRoll = I:GetConstructRoll()
     local ConstructPitch = I:GetConstructPitch()
+    local ConstructYaw = I:GetConstructYaw()
     for key, Leg in pairs(WSLegs) do
         local Parents = Leg.Parents
         local LocalLegPosition = I:GetSubConstructInfo(Parents[1]).LocalPosition
@@ -116,21 +117,17 @@ function WaterSkimmerUpdate(I)
 
         local Pos1 = I:GetSubConstructInfo(Parents[1]).Position
         local Pos5 = I:GetSubConstructInfo(Parents[5]).Position
-        local h = 0
-        if LocalLegPosition.x > 0 then
-            h = -Pos1.y - (Vector3(Pos1.x,0,Pos1.z) - Vector3(Pos5.x,0,Pos5.z)).magnitude * math.cos(ConstructRoll / 180 * math.pi) * math.sin(ConstructRoll / 180 * math.pi) - 4
-        else
-            h = -Pos1.y - (Vector3(Pos1.x,0,Pos1.z) - Vector3(Pos5.x,0,Pos5.z)).magnitude * math.cos(ConstructRoll / 180 * math.pi) * math.sin(-ConstructRoll / 180 * math.pi) - 4
-        end
+        local h =  -Pos1.y - 6
+
         local Lenght1 = Leg.InitialLegPieceVector[2].magnitude
         local Lenght2 = Leg.InitialLegPieceVector[3].magnitude
 
         local FodPos = LegCurve(h,Lenght2)
+        --FodPos = FodPos + Quaternion.Inverse(Quaternion.Euler(ConstructRoll / 180 * math.pi, ConstructYaw / 180 * math.pi, ConstructPitch / 180 * math.pi)) * LocalLegPosition - LocalLegPosition
+        FodPos.y = FodPos.y - (Quaternion.Euler(ConstructRoll / 180 * math.pi, ConstructYaw / 180 * math.pi, ConstructPitch / 180 * math.pi) * (LocalLegPosition + Pos5 - Pos1)).y
         local Angles = GetLegAngle(FodPos.x,FodPos.y,Lenght1,Lenght2)
 
-        local RollShiftCorrection = 2 * (Lenght1 + Lenght2) * (1 - math.cos(ConstructRoll / 180 * math.pi))*math.abs(math.sin(ConstructRoll / 180 * math.pi))
         if  LocalLegPosition.x < 0 then
-            FodPos.x = FodPos.x - math.cos(ConstructRoll / 180 * math.pi) * RollShiftCorrection
             Angles = GetLegAngle(FodPos.x,FodPos.y,Lenght1,Lenght2)
             if (Lenght1 + Lenght2)*0.95 > math.sqrt(FodPos.x^2+FodPos.y^2) then
                 local alpha = math.pi/2+math.atan(FodPos.y/FodPos.x)-Angles.alpha
@@ -145,7 +142,6 @@ function WaterSkimmerUpdate(I)
                 I:SetSpinBlockRotationAngle(Leg.DefiningSCI, 0)
             end
         else
-            FodPos.x = FodPos.x + math.cos(ConstructRoll / 180 * math.pi) * RollShiftCorrection
             Angles = GetLegAngle(FodPos.x,FodPos.y,Lenght1,Lenght2)
             if (Lenght1 + Lenght2)*0.95 > math.sqrt(FodPos.x^2+FodPos.y^2) then
                 local alpha = math.pi/2+math.atan(FodPos.y/FodPos.x)-Angles.alpha
