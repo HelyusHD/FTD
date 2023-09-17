@@ -44,23 +44,23 @@ function GetPIDOutput(SetPoint, measurement, PidIndex)
     local output
     if PIDs[PidIndex] == nil then
         SetPids(I)
-        if PIDs[PidIndex] == nil then
-            return (0,nil)
-        else
-            local PID = PIDs[PidIndex]
+    end
+    if PIDs[PidIndex] == nil then
+        return (0,nil)
+    else
+        local PID = PIDs[PidIndex]
 
-            PID.integral = PID.integral + (error*timeDelta) * PID.Ki
-            if (PID.integral > PID.IMax) then PID.integral = PID.IMax end
-            if (PID.integral < PID.IMin) then PID.integral = PID.IMin end
+        PID.integral = PID.integral + (error*timeDelta) * PID.Ki
+        if (PID.integral > PID.IMax) then PID.integral = PID.IMax end
+        if (PID.integral < PID.IMin) then PID.integral = PID.IMin end
 
-            derivative = (error - PID.previousError)/timeDelta
+        derivative = (error - PID.previousError)/timeDelta
 
-            output = PID.Kp*error + PID.Kd*derivative + PID.integral
-            if (output > PID.OutMax) then output = PID.OutMax end
-            if (output < PID.OutMin) then output = PID.OutMin end
+        output = PID.Kp*error + PID.Kd*derivative + PID.integral
+        if (output > PID.OutMax) then output = PID.OutMax end
+        if (output < PID.OutMin) then output = PID.OutMin end
 
-            PID.previousError = error
-            return output,PID
-        end
+        PID.previousError = error
+        return output,PID
     end
 end
