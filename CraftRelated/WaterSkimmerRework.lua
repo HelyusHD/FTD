@@ -80,7 +80,7 @@ end
 -- loads all the spinners of all the legs in a list
 -- calculates lenght of the segments legs are made out of
 function InitWaterSkimmer(I)
-    init = true
+    WSinit = true
     if WSLegs == nil then
         WSLegs = FindAllStructures(I, LegCodeWord, 5) -- list of all the legs of the water skimmer
     end
@@ -154,7 +154,7 @@ end
 
 
 function Update(I)
-    if init == true then
+    if WSinit == true then
         WaterSkimmerUpdate(I)
     else
         I:ClearLogs()

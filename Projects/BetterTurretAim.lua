@@ -13,3 +13,21 @@ function FindAllSubconstructs(I, TurretCodeName)
     end
     return ChosenSubconstructs
 end
+
+
+function InitBT()
+    BTinit = true
+end
+
+
+function BetterTurretsUpdate(I)
+end
+
+
+function Update(I)
+    if BTinit == true then
+        BetterTurretsUpdate(I)
+    else
+        InitBT()
+    end
+end
