@@ -2,7 +2,10 @@
 
 
 
-
+-- Gets angle of spinner
+function GetSpinnerAngle(I,SubConstructIdentifier)
+    return Quaternion.Angle(I:GetSubConstructInfo(SubConstructIdentifier).LocalRotation, I:GetSubConstructIdleRotation(SubConstructIdentifier))
+end
 
 
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
