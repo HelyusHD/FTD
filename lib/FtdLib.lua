@@ -4,7 +4,8 @@
 
 -- Gets angle of spinner
 function GetSpinnerAngle(I,SubConstructIdentifier)
-    return Quaternion.Angle(I:GetSubConstructInfo(SubConstructIdentifier).LocalRotation, I:GetSubConstructIdleRotation(SubConstructIdentifier))
+    local IdleRotation = I:GetSubConstructIdleRotation(SubConstructIdentifier)
+    return Vector3.SignedAngle(IdleRotation * Vector3.forward, I:GetSubConstructInfo(SubConstructIdentifier).LocalRotation * Vector3.forward, IdleRotation * Vector3.up)
 end
 
 
