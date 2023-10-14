@@ -1,4 +1,5 @@
 function FindAllSubconstructs(I, CodeWord)
+    FindAllSubconstructsDone = true
     local ChosenSubconstructs = {}
     local SubconstructsCount = I:GetAllSubconstructsCount()
     for index = 0, SubconstructsCount-1 do
@@ -43,7 +44,11 @@ end
 function Update(I)
     I:ClearLogs()
     local angle = 45
-    for key, val in pairs(FindAllSubconstructs(I, "test")) do
-        AimTurret(I,val.weaponIndex,val.SubConstructIdentifier,angle)
+    if FindAllSubconstructsDone == true then
+        for key, val in pairs(ChosenSubconstructs) do
+            AimTurret(I,val.weaponIndex,val.SubConstructIdentifier,angle)
+        end
+    else
+        ChosenSubconstructs = FindAllSubconstructs(I, "test")
     end
 end
