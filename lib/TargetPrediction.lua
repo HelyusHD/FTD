@@ -10,6 +10,8 @@
 -- MaxIterationSteps    = maximum iterations to get more accurate
 -- Accuracy             = Accuracy in meters of the aproximation
 
+-- Drag is only aproximated as well. I recomend not using this for very slow bullets!
+
 function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
     local Distance = (Target.Position - Pos).magnitude
     --I:Log("Distance: "..Distance)
