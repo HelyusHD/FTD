@@ -1,5 +1,6 @@
--- This function calculates the InterceptionPoint, InterceptionTime and barrel elevation
+-- This function calculates the AimingDirection, InterceptionPoint, InterceptionTime and barrel elevation
 -- for a gun fireing a bullet on a moving target.
+-- AimingDirection gives you the direction to aim the barrel.
 -- The straightest flight curve is prioritised.
 
 -- Target               = TargetInfoObject containing {Position=Vector3, Velocity=Vector3, Acceleration=Vector3}
@@ -24,16 +25,18 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
         PredictedPositionLast = PredictedPosition
         PredictedPosition = Target.Position + Target.Velocity * InterceptionTime + Target.Acceleration * InterceptionTime^2 / 2
         local Dy = PredictedPosition.y - Pos.y
-        Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime
-        local Vx = math.sqrt(Vel^2 - Vy^2)
+        Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime / 2
+        local Vxz = math.sqrt(Vel^2 - Vy^2)
         Distance = (PredictedPosition - Pos).magnitude
-        InterceptionTime = Distance/(Vx - (Vx*Drag/Mass * InterceptionTime^2 / 2))
-        I:Log("Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vx: "..Vx)
+        InterceptionTime = Distance/(Vel - (Vel*Drag/Mass * InterceptionTime^2 / 2))
+        I:Log("Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
         if Vel^2 < Vy^2 then return {Valid = false} end
     end
 
-    local Elevation = math.acos(Vel,Vy)
-    return {InterceptionPoint = PredictedPosition, InterceptionTime = InterceptionTime, Elevation = Elevation, Valid = true}
+    local Elevation = math.asin(Vy/Vel) * 180/math.pi
+    local a = (Vector3(PredictedPosition.x,0,PredictedPosition.z) - Vector3(Pos.x,0,Pos.z)).normalized
+    local AimingDirection = Quaternion.AngleAxis(Elevation, Vector3.Cross(a,Vector3.up).normalized) * a
+    return {AimingDirection = AimingDirection, InterceptionPoint = PredictedPosition, InterceptionTime = InterceptionTime, Elevation = Elevation, Valid = true}
 end
 
 

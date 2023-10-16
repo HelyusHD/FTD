@@ -31,16 +31,18 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
         PredictedPositionLast = PredictedPosition
         PredictedPosition = Target.Position + Target.Velocity * InterceptionTime + Target.Acceleration * InterceptionTime^2 / 2
         local Dy = PredictedPosition.y - Pos.y
-        Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime
-        local Vx = math.sqrt(Vel^2 - Vy^2)
+        Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime / 2
+        local Vxz = math.sqrt(Vel^2 - Vy^2)
         Distance = (PredictedPosition - Pos).magnitude
-        InterceptionTime = Distance/(Vx - (Vx*Drag/Mass * InterceptionTime^2 / 2))
-        I:Log("Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vx: "..Vx)
+        InterceptionTime = Distance/(Vel - (Vel*Drag/Mass * InterceptionTime^2 / 2))
+        I:Log("Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
         if Vel^2 < Vy^2 then return {Valid = false} end
     end
 
-    local Elevation = math.acos(Vel,Vy)
-    return {InterceptionPoint = PredictedPosition, InterceptionTime = InterceptionTime, Elevation = Elevation, Valid = true}
+    local Elevation = math.asin(Vy/Vel) * 180/math.pi
+    local a = (Vector3(PredictedPosition.x,0,PredictedPosition.z) - Vector3(Pos.x,0,Pos.z)).normalized
+    local AimingDirection = Quaternion.AngleAxis(Elevation, Vector3.Cross(a,Vector3.up).normalized) * a
+    return {AimingDirection = AimingDirection, InterceptionPoint = PredictedPosition, InterceptionTime = InterceptionTime, Elevation = Elevation, Valid = true}
 end
 
 
@@ -114,7 +116,6 @@ function AimBT(I,key,BetterTurret)
         -- if placed on another BT, we need to get its target global rotation
         if BetterTurret.PlacedOnBT then
             ParentRotation = BetterTurrets[BetterTurret.BTParentKey].TargetRotationLast
-            I:Log("using rotation: "..tostring(ParentRotation).." as ParentRotation")
         else
             ParentRotation = I:GetSubConstructInfo(Parent).Rotation
         end
@@ -130,9 +131,8 @@ function AimBT(I,key,BetterTurret)
         local Drag = 0
         local TargetPrediction = TargetPrediction(I,TargetInfo,Pos,Vel,Mass,Drag,100,1)
         if TargetPrediction.Valid then
-            local target = TargetPrediction.InterceptionPoint
 
-            local TargetDirection = (target - Position).normalized -- GlobalSpace
+            local TargetDirection = TargetPrediction.AimingDirection -- GlobalSpace
             local ProjectedDirection = Vector3.ProjectOnPlane(TargetDirection, AxisGlobal) -- GlobalSpace
             BetterTurrets[key].TargetRotationLast = Quaternion.LookRotation(ProjectedDirection, AxisGlobal) --GlobalSpace
             local AngleShould = Vector3.SignedAngle(ParentRotation * (IdleRotation * Vector3.forward), ProjectedDirection, AxisGlobal) -- GlobalSpace
