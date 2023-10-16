@@ -16,6 +16,34 @@ SYSTEM = 30 -- shows the calculations
 DebugLevel = SYSTEM
 
 
+-- This function calculates the InterceptionPoint, InterceptionTime and barrel elevation
+-- for a gun fireing a bullet on a moving target.
+-- The straightest flight curve is prioritised.
+function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
+    local Distance = (Target.Position - Pos).magnitude
+    local PredictedPosition = Target.Position
+    local InterceptionTime = Distance/Vel
+    local PredictedPositionLast = Target.Position + Target.Position.normalized * (Accuracy+1)
+    local Iterations = 0
+    local Vy
+    while (PredictedPosition - PredictedPositionLast).magnitude > Accuracy and Iterations < MaxIterationSteps do
+        Iterations = Iterations + 1
+        PredictedPositionLast = PredictedPosition
+        PredictedPosition = Target.Position + Target.Velocity * InterceptionTime + Target.Acceleration * InterceptionTime^2 / 2
+        local Dy = PredictedPosition.y - Pos.y
+        Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime
+        local Vx = math.sqrt(Vel^2 - Vy^2)
+        Distance = (PredictedPosition - Pos).magnitude
+        InterceptionTime = Distance/(Vx - (Vx*Drag/Mass * InterceptionTime^2 / 2))
+        I:Log("Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vx: "..Vx)
+        if Vel^2 < Vy^2 then return {Valid = false} end
+    end
+
+    local Elevation = math.acos(Vel,Vy)
+    return {InterceptionPoint = PredictedPosition, InterceptionTime = InterceptionTime, Elevation = Elevation, Valid = true}
+end
+
+
 
 -- Gets angle of spinner
 function GetSpinnerAngle(I,SubConstructIdentifier)
@@ -94,43 +122,49 @@ function AimBT(I,key,BetterTurret)
     local AxisGlobal = ParentRotation * IdleRotation * Vector3.up -- GlobalSpace
 
     local TargetInfo = I:GetTargetInfo(BetterTurret.AiIndex, 0)
-    local target -- GlobalSpace
     if TargetInfo.Valid then
-        target = TargetInfo.AimPointPosition
-    else
-        target = Vector3(0,0,0)
-    end
-    local TargetDirection = (target - Position).normalized -- GlobalSpace
-    local ProjectedDirection = Vector3.ProjectOnPlane(TargetDirection, AxisGlobal) -- GlobalSpace
-    BetterTurrets[key].TargetRotationLast = Quaternion.LookRotation(ProjectedDirection, AxisGlobal) --GlobalSpace
-    local AngleShould = Vector3.SignedAngle(ParentRotation * (IdleRotation * Vector3.forward), ProjectedDirection, AxisGlobal) -- GlobalSpace
-    MyLog(I,SYSTEM,"SYSTEM:   projection: "..tostring(ProjectedDirection).." mag.: "..ProjectedDirection.magnitude.." global rot. axis: "..tostring(AxisGlobal))
+        local TargetInfo = {Position = TargetInfo.Position, Velocity = TargetInfo.Velocity, Acceleration = Vector3(0,0,0)}
+        local Pos = Position
+        local Vel = 1000
+        local Mass = 1
+        local Drag = 0
+        local TargetPrediction = TargetPrediction(I,TargetInfo,Pos,Vel,Mass,Drag,100,1)
+        if TargetPrediction.Valid then
+            local target = TargetPrediction.InterceptionPoint
 
-    local AimingBehaviour = BetterTurret.AimingBehaviour
-    local SlowAimCone = AimingBehaviour.SlowAimCone
-    local DegPerSecMax = AimingBehaviour.DegPerSecMax
-    local DegPerSecMin = AimingBehaviour.DegPerSecMin
-
-    local AngleIs = GetSpinnerAngle(I,BT_ID)
-    local AngleDif = AngleIs - AngleShould
-    local DeltaAngle = DegPerSecMax/40 * math.abs(AngleDif)/SlowAimCone
-    if DeltaAngle < DegPerSecMin/40 then DeltaAngle = DegPerSecMin/40 end
-
-    local TurnDirection
-    if AngleDif > 0 then
-        TurnDirection = -1
-    else
-        TurnDirection = 1
-    end
-
-    if math.abs(AngleDif) > DeltaAngle then
-        if math.abs(AngleDif) < SlowAimCone then
-            AngleShould = AngleIs + DeltaAngle * TurnDirection
-        else
-            AngleShould = AngleIs + DegPerSecMax/40 * TurnDirection
+            local TargetDirection = (target - Position).normalized -- GlobalSpace
+            local ProjectedDirection = Vector3.ProjectOnPlane(TargetDirection, AxisGlobal) -- GlobalSpace
+            BetterTurrets[key].TargetRotationLast = Quaternion.LookRotation(ProjectedDirection, AxisGlobal) --GlobalSpace
+            local AngleShould = Vector3.SignedAngle(ParentRotation * (IdleRotation * Vector3.forward), ProjectedDirection, AxisGlobal) -- GlobalSpace
+            MyLog(I,SYSTEM,"SYSTEM:   projection: "..tostring(ProjectedDirection).." mag.: "..ProjectedDirection.magnitude.." global rot. axis: "..tostring(AxisGlobal))
+    
+            local AimingBehaviour = BetterTurret.AimingBehaviour
+            local SlowAimCone = AimingBehaviour.SlowAimCone
+            local DegPerSecMax = AimingBehaviour.DegPerSecMax
+            local DegPerSecMin = AimingBehaviour.DegPerSecMin
+    
+            local AngleIs = GetSpinnerAngle(I,BT_ID)
+            local AngleDif = AngleIs - AngleShould
+            local DeltaAngle = DegPerSecMax/40 * math.abs(AngleDif)/SlowAimCone
+            if DeltaAngle < DegPerSecMin/40 then DeltaAngle = DegPerSecMin/40 end
+    
+            local TurnDirection
+            if AngleDif > 0 then
+                TurnDirection = -1
+            else
+                TurnDirection = 1
+            end
+    
+            if math.abs(AngleDif) > DeltaAngle then
+                if math.abs(AngleDif) < SlowAimCone then
+                    AngleShould = AngleIs + DeltaAngle * TurnDirection
+                else
+                    AngleShould = AngleIs + DegPerSecMax/40 * TurnDirection
+                end
+            end
+            I:SetSpinBlockRotationAngle(BT_ID, AngleShould)
         end
     end
-    I:SetSpinBlockRotationAngle(BT_ID, AngleShould)
 end
 
 
