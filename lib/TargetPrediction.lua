@@ -1,5 +1,6 @@
 -- This function calculates the InterceptionPoint, InterceptionTime and barrel elevation
 -- for a gun fireing a bullet on a moving target.
+-- The the straightest flight curve is prioritised.
 
 -- Target               = TargetInfoObject containing {Position=Vector3, Velocity=Vector3, Acceleration=Vector3}
 -- Pos                  = Vector3 where the bullet spawns in global space
