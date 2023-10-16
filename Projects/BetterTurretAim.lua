@@ -1,16 +1,27 @@
 -- use spinners to build LUA controlled turrets
 
 
-AzimuthSpinnerCodeName = "am"
-ElevationSpinnerCodeName = "ev"
+-- include the BetterTurretCodeName in the name of a spinner, in order to aim it
+BetterTurretCodeName = "BT"
 
--- add the BetterTurretIndex to all BetterTurrets that should be controlled by the ai with AiName
-AimGroups = {{AiName = "Ai_1",BetterTurretIndex = "1"}}
+-- Define ConfigGroups to tell your BTs what ai to listen to and how to move
+ConfigGroups =  {{BetterTurretIndex = "1", AiName = "Ai_1", AimingBehaviour = {SlowAimCone = 10, DegPerSecMax = 60, DegPerSecMin = 20}}
+                }
+-- also add the BetterTurretIndex to all BetterTurrets names that should be controlled by the ai with AiName
+-- a valid name with those default config would be "BT 1" or "h1Bv   uBT534 T111"
+
+ERROR  = 0  -- shows errors
+UPDATE = 20 -- shows the effect of the code
+SYSTEM = 30 -- shows the calculations
+DebugLevel = SYSTEM
 
 
-ERROR = 0
-UPDATE = 20
-DebugLevel = UPDATE
+
+-- Gets angle of spinner
+function GetSpinnerAngle(I,SubConstructIdentifier)
+    local IdleRotation = I:GetSubConstructIdleRotation(SubConstructIdentifier)
+    return Vector3.SignedAngle(IdleRotation * Vector3.forward, I:GetSubConstructInfo(SubConstructIdentifier).LocalRotation * Vector3.forward, IdleRotation * Vector3.up)
+end
 
 
 
@@ -19,10 +30,8 @@ function FindAllSubconstructs(I, CodeWord)
     local SubconstructsCount = I:GetAllSubconstructsCount()
     for index = 0, SubconstructsCount-1 do
         local SubConstructIdentifier = I:GetSubConstructIdentifier(index)
-        I:Log(I:GetSubConstructInfo(SubConstructIdentifier).CustomName.." hi "..SubConstructIdentifier)
         if string.find(I:GetSubConstructInfo(SubConstructIdentifier).CustomName, CodeWord) then
             table.insert(ChosenSubconstructs, SubConstructIdentifier)
- 
         end
     end
     return ChosenSubconstructs
@@ -32,79 +41,109 @@ end
 function InitBT(I)
     BTinit = true
     BetterTurrets = {}
-    ChosenSubconstructs = FindAllSubconstructs(I,AzimuthSpinnerCodeName)
+    ChosenSubconstructs = FindAllSubconstructs(I,BetterTurretCodeName)
     if #ChosenSubconstructs == 0 then
         MyLog(I,ERROR,"ERROR:   found no turrets to control")
         BTinit = false
     end
     for key, SubConstructIdentifier in pairs(ChosenSubconstructs) do
-        local AzimuthTurret = SubConstructIdentifier
-        local ElevationTurrets = {}
-        local ChildrenCount = I:GetSubconstructsChildrenCount(SubConstructIdentifier)
-        for index = 0, ChildrenCount-1 do
-            local SubConstructChildIdentifier = I:GetSubConstructChildIdentifier(SubConstructIdentifier, index)
-            if I:IsTurret(SubConstructChildIdentifier) then
-                if I:GetSubConstructInfo(SubConstructChildIdentifier).CustomName == ElevationTurretCodeName then
-                    table.insert(ElevationTurrets,SubConstructChildIdentifier)
-                end
-            end
-        end
-        local ATIdleRotation = I:GetSubConstructIdleRotation(SubConstructIdentifier)
-        AiIndex = -1
-        for tmp, AimGroup in pairs(AimGroups) do
-            if string.find(I:GetSubConstructInfo(SubConstructIdentifier).CustomName, AimGroup.BetterTurretIndex) then
+        local BT_ID = SubConstructIdentifier
+        local IdleRotation = I:GetSubConstructIdleRotation(BT_ID)
+        local AiIndex = -1
+        local AimingBehaviour
+        for tmp, ConfigGroup in pairs(ConfigGroups) do
+            if string.find(I:GetSubConstructInfo(BT_ID).CustomName, ConfigGroup.BetterTurretIndex) then
+                AimingBehaviour = ConfigGroup.AimingBehaviour
                 for MainframeIndex = 0, I:GetNumberOfMainframes()-1 do
-                    if I:Component_GetBlockInfo(26,MainframeIndex).CustomName == AimGroup.AiName then AiIndex = MainframeIndex end
+                    if I:Component_GetBlockInfo(26,MainframeIndex).CustomName == ConfigGroup.AiName then AiIndex = MainframeIndex end
                 end
             end
         end
-        BetterTurrets[key] = {AzimuthTurret = AzimuthTurret, ElevationTurrets = ElevationTurrets, ATIdleRotation = ATIdleRotation, ATParent = I:GetParent(SubConstructIdentifier), AiIndex = AiIndex}
+        BetterTurrets[key] = {BT_ID = BT_ID, IdleRotation = IdleRotation, Parent = I:GetParent(BT_ID), AiIndex = AiIndex, AimingBehaviour = AimingBehaviour, PlacedOnBT = false, TargetRotationLast = Quaternion.identity}
+        -- findind BTs placed on BTs
+        for key_01, BetterTurret_01 in pairs(BetterTurrets) do
+            for key_02, BetterTurret_02 in pairs(BetterTurrets) do
+                if BetterTurret_01.Parent == BetterTurret_02.BT_ID then
+                    BetterTurrets[key_01].PlacedOnBT = true
+                    BetterTurrets[key_01].BTParentKey = key_02
+                end
+            end
+        end
     end
 end
 
 
+function AimBT(I,key,BetterTurret)
+    local BT_ID = BetterTurret.BT_ID
+    local SubConstructInfo = I:GetSubConstructInfo(BT_ID)
+    local Position = SubConstructInfo.Position -- GlobalSpace
+    local IdleRotation = BetterTurret.IdleRotation -- SubSpace
+    local Parent = BetterTurret.Parent
+    local ParentRotation -- GlobalSpace
+    if Parent == 0 then
+        ParentRotation = Quaternion.Euler(I:GetConstructPitch(), I:GetConstructYaw(), I:GetConstructRoll())
+    else
+        -- if placed on another BT, we need to get its target global rotation
+        if BetterTurret.PlacedOnBT then
+            ParentRotation = BetterTurrets[BetterTurret.BTParentKey].TargetRotationLast
+            I:Log("using rotation: "..tostring(ParentRotation).." as ParentRotation")
+        else
+            ParentRotation = I:GetSubConstructInfo(Parent).Rotation
+        end
+    end
+    local AxisGlobal = ParentRotation * IdleRotation * Vector3.up -- GlobalSpace
+
+    local TargetInfo = I:GetTargetInfo(BetterTurret.AiIndex, 0)
+    local target -- GlobalSpace
+    if TargetInfo.Valid then
+        target = TargetInfo.AimPointPosition
+    else
+        target = Vector3(0,0,0)
+    end
+    local TargetDirection = (target - Position).normalized -- GlobalSpace
+    local ProjectedDirection = Vector3.ProjectOnPlane(TargetDirection, AxisGlobal) -- GlobalSpace
+    BetterTurrets[key].TargetRotationLast = Quaternion.LookRotation(ProjectedDirection, AxisGlobal) --GlobalSpace
+    local AngleShould = Vector3.SignedAngle(ParentRotation * (IdleRotation * Vector3.forward), ProjectedDirection, AxisGlobal) -- GlobalSpace
+    MyLog(I,SYSTEM,"SYSTEM:   projection: "..tostring(ProjectedDirection).." mag.: "..ProjectedDirection.magnitude.." global rot. axis: "..tostring(AxisGlobal))
+
+    local AimingBehaviour = BetterTurret.AimingBehaviour
+    local SlowAimCone = AimingBehaviour.SlowAimCone
+    local DegPerSecMax = AimingBehaviour.DegPerSecMax
+    local DegPerSecMin = AimingBehaviour.DegPerSecMin
+
+    local AngleIs = GetSpinnerAngle(I,BT_ID)
+    local AngleDif = AngleIs - AngleShould
+    local DeltaAngle = DegPerSecMax/40 * math.abs(AngleDif)/SlowAimCone
+    if DeltaAngle < DegPerSecMin/40 then DeltaAngle = DegPerSecMin/40 end
+
+    local TurnDirection
+    if AngleDif > 0 then
+        TurnDirection = -1
+    else
+        TurnDirection = 1
+    end
+
+    if math.abs(AngleDif) > DeltaAngle then
+        if math.abs(AngleDif) < SlowAimCone then
+            AngleShould = AngleIs + DeltaAngle * TurnDirection
+        else
+            AngleShould = AngleIs + DegPerSecMax/40 * TurnDirection
+        end
+    end
+    I:SetSpinBlockRotationAngle(BT_ID, AngleShould)
+end
+
+
 function BetterTurretsUpdate(I)
+    MyLog(I,UPDATE,"UPDATE:   BetterTurrets is controlling "..#BetterTurrets.." turrets")
     for key, BetterTurret in pairs(BetterTurrets) do
-        local AT = BetterTurret.AzimuthTurret
-        local ATInfo = I:GetSubConstructInfo(AT)
-        local ATPosition = ATInfo.Position
-        local ATRotation = ATInfo.Rotation
-        local ATAxis = ATRotation * Vector3.up
-        local ATIdleRotation = BetterTurret.ATIdleRotation
-        local ATParent = BetterTurret.ATParent
-        local ParentRotation
-        if ATParent == 0 then
-            ParentRotation = Quaternion.Euler(I:GetConstructRoll(), I:GetConstructYaw(), I:GetConstructPitch())
-        else
-            ParentRotation = I:GetSubConstructInfo(ATParent).Rotation
-        end
-
-        --local target = Vector3(0,0,0)
-        local TargetInfo = I:GetTargetInfo(BetterTurret.AiIndex, 0)
-        I:Log(BetterTurret.AiIndex)
-        local target
-        if TargetInfo.Valid then
-            target = TargetInfo.AimPointPosition
-        else
-            target = Vector3(0,0,0)
-        end
-        local TargetDirection = (target - ATPosition).normalized
-        local ProjectedDirection = Quaternion.AngleAxis(90, ATAxis) * Vector3.Cross(TargetDirection, ATAxis)
-        local angle = Vector3.Angle(ProjectedDirection, ParentRotation * Quaternion.Inverse(ATIdleRotation) * Vector3.forward)
-
-        local CurrentAngle = Quaternion.Angle(ATInfo.LocalRotation, ATIdleRotation)
-
-        I:Log("CurrentAngle = "..CurrentAngle)
-
-        I:SetSpinBlockRotationAngle(AT, angle)
-        MyLog(I,UPDATE,"UPDATE:   aiming spinner "..AT.." at "..angle.." degrees")
-        MyLog(I,UPDATE,"UPDATE:   spinner "..AT.." pointing "..tostring(ATRotation * Vector3.forward))
+        AimBT(I,key,BetterTurret)
     end
 end
 
 
 function Update(I)
-    --I:ClearLogs()
+    I:ClearLogs()
     if BTinit == true then
         BetterTurretsUpdate(I)
     else
