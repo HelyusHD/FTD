@@ -22,7 +22,7 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
         PredictedPositionLast = PredictedPosition
         PredictedPosition = Target.Position + Target.Velocity * InterceptionTime + Target.Acceleration * InterceptionTime^2 / 2
         local Dy = PredictedPosition.y - Pos.y
-        Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2)*InterceptionTime -- Dy = InterceptionTime * Vy + g*InterceptionTime^2
+        Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime -- Dy = InterceptionTime * Vy + g*InterceptionTime^2
         local Vx = math.sqrt(Vel^2 - Vy^2) -- Vel^2 = Vy^2 + Vx^2
         Distance = (PredictedPosition - Pos).magnitude
         InterceptionTime = Distance/(Vx - (Vx*Drag/Mass * InterceptionTime^2 / 2))
