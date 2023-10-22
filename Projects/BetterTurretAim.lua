@@ -5,7 +5,7 @@
 BetterTurretCodeName = "BT"
 
 -- Define ConfigGroups to tell your BTs what ai to listen to and how to move
-ConfigGroups =  {{BetterTurretIndex = "1", AiName = "Ai_1", AimingBehaviour = {SlowAimCone = 10, DegPerSecMax = 60, DegPerSecMin = 20}}
+ConfigGroups =  {{BetterTurretIndex = "1", AiName = "Ai_1", AimingBehaviour = {SlowAimCone = 0, DegPerSecMax = 120, DegPerSecMin = 20}}
                 }
 -- also add the BetterTurretIndex to all BetterTurrets names that should be controlled by the ai with AiName
 -- a valid name with those default config would be "BT 1" or "h1Bv   uBT534 T111"
@@ -13,7 +13,8 @@ ConfigGroups =  {{BetterTurretIndex = "1", AiName = "Ai_1", AimingBehaviour = {S
 ERROR  = 0  -- shows errors
 UPDATE = 20 -- shows the effect of the code
 SYSTEM = 30 -- shows the calculations
-DebugLevel = SYSTEM
+DebugLevel = UPDATE
+
 
 
 -- This function calculates the InterceptionPoint, InterceptionTime and barrel elevation
@@ -35,7 +36,7 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
         local Vxz = math.sqrt(Vel^2 - Vy^2)
         Distance = (PredictedPosition - Pos).magnitude
         InterceptionTime = Distance/(Vel - (Vel*Drag/Mass * InterceptionTime^2 / 2))
-        I:Log("Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
+        MyLog(I,SYSTEM,"Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
         if Vel^2 < Vy^2 then return {Valid = false} end
     end
 
@@ -111,7 +112,7 @@ function AimBT(I,key,BetterTurret)
     local Parent = BetterTurret.Parent
     local ParentRotation -- GlobalSpace
     if Parent == 0 then
-        ParentRotation = Quaternion.Euler(I:GetConstructPitch(), I:GetConstructYaw(), I:GetConstructRoll())
+        ParentRotation = Quaternion.Euler(I:GetConstructPitch()*math.pi/180/2, I:GetConstructYaw()*math.pi/180/2, I:GetConstructRoll()*math.pi/180/2)
     else
         -- if placed on another BT, we need to get its target global rotation
         if BetterTurret.PlacedOnBT then
@@ -133,6 +134,7 @@ function AimBT(I,key,BetterTurret)
         if TargetPrediction.Valid then
 
             local TargetDirection = TargetPrediction.AimingDirection -- GlobalSpace
+            --TargetDirection = Vector3(0,0,1)
             local ProjectedDirection = Vector3.ProjectOnPlane(TargetDirection, AxisGlobal) -- GlobalSpace
             BetterTurrets[key].TargetRotationLast = Quaternion.LookRotation(ProjectedDirection, AxisGlobal) --GlobalSpace
             local AngleShould = Vector3.SignedAngle(ParentRotation * (IdleRotation * Vector3.forward), ProjectedDirection, AxisGlobal) -- GlobalSpace

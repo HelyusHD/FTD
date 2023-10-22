@@ -46,7 +46,7 @@ function GetPIDOutput(SetPoint, measurement, PidIndex)
         SetPids(I)
     end
     if PIDs[PidIndex] == nil then
-        return (0,nil)
+        return 0,nil
     else
         local PID = PIDs[PidIndex]
 

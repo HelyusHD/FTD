@@ -1,12 +1,14 @@
--- this is a library by HelyusHD for the video game From The Depths
+-- I save a subconstruct, working as a quick gyro setup, in
+-- LUA/gyro
 
 
+GyroCodeWord ="gyro"
 
--- Gets angle of spinner
-function GetSpinnerAngle(I,SubConstructIdentifier)
-    local IdleRotation = I:GetSubConstructIdleRotation(SubConstructIdentifier)
-    return Vector3.SignedAngle(IdleRotation * Vector3.forward, I:GetSubConstructInfo(SubConstructIdentifier).LocalRotation * Vector3.forward, IdleRotation * Vector3.up)
-end
+
+ERROR  = 0  -- shows errors
+UPDATE = 20 -- shows the effect of the code
+SYSTEM = 30 -- shows the calculations
+DebugLevel = UPDATE
 
 
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
@@ -22,7 +24,7 @@ function FindAllSubconstructs(I, CodeWord)
                 table.insert(ChosenSubconstructs, SubConstructIdentifier)
             end
         else
-            --ERROR
+            MyLog(I,ERROR,"ERROR:   SubConstructInfo invalid")
         end
     end
     return ChosenSubconstructs
@@ -58,8 +60,33 @@ function FindAllStructures(I, CodeWord, Depths)
     local Structures = {}
     local AllSubconstructs = FindAllSubconstructs(I, CodeWord)
     for key, SubConstructIdentifier in pairs(AllSubconstructs) do
-        table.insert(Structures, {SubConstructIdentifier, FindParentsOfSubconstruct(I,SubConstructIdentifier, Depths)})
+        table.insert(Structures, {SubConstructIdentifier = SubConstructIdentifier, Parents = FindParentsOfSubconstruct(I,SubConstructIdentifier, Depths)})
     end
     return Structures
 end
 
+
+
+function MyLog(I,priority,message)
+    if priority <= DebugLevel then
+        I:Log(message)
+    end
+end 
+
+
+
+function Update(I)
+    for key, Structure in pairs(FindAllStructures(I,GyroCodeWord,4)) do
+        I:SetSpinBlockRotationAngle(Structure.SubConstructIdentifier, -I:GetConstructYaw())
+        for key, SubConstructIdentifier in pairs(Structure.Parents) do
+            local angle = 0
+            if key == 2 then
+                angle = I:GetConstructPitch()
+            end
+            if key == 4 then
+                angle = -I:GetConstructRoll()
+            end
+            I:SetSpinBlockRotationAngle(SubConstructIdentifier, angle)
+        end
+    end
+end
