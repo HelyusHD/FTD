@@ -29,7 +29,6 @@ function BetterTargetInfo(I, AiIndex, Prio)
             local Acceleration = (TargetInfo.Velocity - TargetInfos[AiIndex][Prio].VelocityLast) * 40
             TargetInfos[AiIndex][Prio] =   {Acceleration = Acceleration, VelocityLast = TargetInfo.Velocity, LastUpdate = I:GetTime()}
         end
-        I:Log(tostring(TargetInfos[AiIndex][Prio].Acceleration))
         return TargetInfos[AiIndex][Prio]
     else
         TargetInfos[AiIndex][Prio] = nil
