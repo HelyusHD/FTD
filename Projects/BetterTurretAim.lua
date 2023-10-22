@@ -181,7 +181,7 @@ function AimBT(I,key,BetterTurret)
                 TurnDirection = 1
             end
     
-            if math.abs(AngleDif) > DeltaAngle then
+            if math.abs(AngleDif) > DeltaAngle and AngleDif > 1 then
                 if math.abs(AngleDif) < SlowAimCone then
                     AngleShould = AngleIs + DeltaAngle * TurnDirection
                 else
