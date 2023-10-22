@@ -16,6 +16,31 @@ SYSTEM = 30 -- shows the calculations
 DebugLevel = UPDATE
 
 
+function BetterTargetInfo(I, AiIndex, Prio)
+    if TargetInfos == nil then TargetInfos = {} end
+    local TargetInfo = I:GetTargetInfo(AiIndex, Prio)
+    if TargetInfos[AiIndex] == nil then TargetInfos[AiIndex] = {} end
+    if TargetInfos[AiIndex][Prio] == nil then TargetInfos[AiIndex][Prio] = {} end
+    if TargetInfo.Valid then
+        if I:GetTime() ~= TargetInfos[AiIndex][Prio].LastUpdate then
+            if TargetInfos[AiIndex][Prio].VelocityLast == nil then
+                TargetInfos[AiIndex][Prio].VelocityLast = TargetInfo.Velocity
+            end
+            local Acceleration = (TargetInfo.Velocity - TargetInfos[AiIndex][Prio].VelocityLast) * 40
+            TargetInfos[AiIndex][Prio] =   {Acceleration = Acceleration, VelocityLast = TargetInfo.Velocity, LastUpdate = I:GetTime()}
+        end
+        I:Log(tostring(TargetInfos[AiIndex][Prio].Acceleration))
+        return TargetInfos[AiIndex][Prio]
+    else
+        TargetInfos[AiIndex][Prio] = nil
+        return  {
+                Acceleration = Vector3(0,0,0),
+                VelocityLast = Vector3(0,0,0)
+                }
+    end
+end
+
+
 
 -- This function calculates the InterceptionPoint, InterceptionTime and barrel elevation
 -- for a gun fireing a bullet on a moving target.
@@ -125,7 +150,7 @@ function AimBT(I,key,BetterTurret)
 
     local TargetInfo = I:GetTargetInfo(BetterTurret.AiIndex, 0)
     if TargetInfo.Valid then
-        local TargetInfo = {Position = TargetInfo.Position, Velocity = TargetInfo.Velocity, Acceleration = Vector3(0,0,0)}
+        local TargetInfo = {Position = TargetInfo.Position, Velocity = TargetInfo.Velocity, Acceleration = BetterTargetInfo(I, BetterTurret.AiIndex, 0).Acceleration}
         local Pos = Position
         local Vel = 1000
         local Mass = 1
