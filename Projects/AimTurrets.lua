@@ -23,7 +23,7 @@ function FindAllSubconstructs(I, CodeWord)
     return ChosenSubconstructs
 end
 
-
+-- rotates a turret using the angle and not a aim point
 function AimTurret(I,weaponIndex,SubConstructIdentifier,angle)
     local BlockInfo = I:GetWeaponBlockInfo(weaponIndex)
     local ParentRotation
