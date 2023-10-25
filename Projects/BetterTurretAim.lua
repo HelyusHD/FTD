@@ -136,7 +136,8 @@ function AimBT(I,key,BetterTurret)
     local Parent = BetterTurret.Parent
     local ParentRotation -- GlobalSpace
     if Parent == 0 then
-        ParentRotation = Quaternion.Euler(I:GetConstructPitch()*math.pi/180/2, I:GetConstructYaw()*math.pi/180/2, I:GetConstructRoll()*math.pi/180/2)
+        --ParentRotation = Quaternion.Euler(I:GetConstructPitch()*math.pi/180/2, I:GetConstructYaw()*math.pi/180/2, I:GetConstructRoll()*math.pi/180/2)
+        ParentRotation = Quaternion.Euler(I:GetConstructPitch(), I:GetConstructYaw(), I:GetConstructRoll())
     else
         -- if placed on another BT, we need to get its target global rotation
         if BetterTurret.PlacedOnBT then
