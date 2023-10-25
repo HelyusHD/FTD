@@ -77,12 +77,35 @@ function FindAllStructures(I, CodeWord, Depths)
 end
 
 
+-- rotates 5 stacked spinners to perform a quaternion rotation
+-- only the 1,3,5 th spinner will be rotated
+-- all of those 3 spinners stay at the same coordinate
+function GimbalSpinner(I,SubConstructIdentifier,Rotation)
+    local SubConId_2 = I:GetParent(SubConstructIdentifier)
+    local SubConId_3 = I:GetParent(SubConId_2)
+    local SubConId_4 = I:GetParent(SubConId_3)
+    local SubConId_5 = I:GetParent(SubConId_4)
+    local Parent = I:GetParent(SubConId_5)
+    local ParentRotation
+    if Parent == 0 then
+        ParentRotation = Quaternion.Euler(I:GetConstructPitch(), I:GetConstructYaw(), I:GetConstructRoll())
+    else
+        ParentRotation = I:GetSubConstructInfo(Parent).Rotation
+    end
+    local eulerAngles = (Quaternion.Inverse(I:GetSubConstructIdleRotation(SubConId_5)) * Quaternion.Inverse(ParentRotation) * Rotation).eulerAngles
+    local SubConId = SubConstructIdentifier
+    I:SetSpinBlockRotationAngle(SubConId, eulerAngles.z)
+    I:SetSpinBlockRotationAngle(SubConId_3, -eulerAngles.x)
+    I:SetSpinBlockRotationAngle(SubConId_5, eulerAngles.y)
+end
+
+
 -- loads all the spinners of all the legs in a list
 -- calculates lenght of the segments legs are made out of
 function InitWaterSkimmer(I)
     WSinit = true
     if WSLegs == nil then
-        WSLegs = FindAllStructures(I, LegCodeWord, 5) -- list of all the legs of the water skimmer
+        WSLegs = FindAllStructures(I, LegCodeWord, 7) -- list of all the legs of the water skimmer
     end
     for key, Structure in pairs (WSLegs) do
         WSLegs[key].InitialLegPieceVector = {} -- the vectors connecting 2 joints 
@@ -131,20 +154,20 @@ function WaterSkimmerUpdate(I)
         local yaw = Angles.yaw * 180 / math.pi
 
         local DesiredDirection = Vector3(I:GetConstructForwardVector().x,0,I:GetConstructForwardVector().z).normalized
-        --local DesiredDirection = Vector3(0,0,1)
-        local V1 = Quaternion.Inverse(I:GetSubConstructInfo(Parents[3]).Rotation) * DesiredDirection
-        local EulerAngles = (Quaternion.FromToRotation(Vec1, V1)).eulerAngles
-        local EulerPitch, EulerYaw, EulerRoll = EulerAngles.x,EulerAngles.y,EulerAngles.z -- euler angles in local space
-        I:Log("EulerAngles:   "..tostring(EulerAngles))
+        local YawRequest = I:GetPropulsionRequest(5)
+        local PerfectYawDirection = (I:GetSubConstructInfo(Leg.DefiningSCI).Position - I:GetConstructPosition())
+
+        PerfectYawDirection.y = 0
+        PerfectYawDirection = (Quaternion.AngleAxis(90, Vector3.up) * PerfectYawDirection).normalized
+
+        DesiredDirection = (PerfectYawDirection * YawRequest + DesiredDirection * (1-math.abs(YawRequest))^2).normalized
 
         if (Lenght1 + Lenght2)*0.95 > math.sqrt(LocalTargetPos.x^2+LocalTargetPos.z^2) and alpha == alpha and betha == betha and yaw == yaw then
 
             I:SetSpinBlockRotationAngle(Parents[1], yaw) -- yawing entire leg
             I:SetSpinBlockRotationAngle(Parents[2], alpha) -- first segment
             I:SetSpinBlockRotationAngle(Parents[3], betha) -- second segment
-            I:SetSpinBlockRotationAngle(Parents[4], EulerPitch)
-            I:SetSpinBlockRotationAngle(Parents[5], EulerYaw - (alpha+betha)*Vec1.y) -- I have to later fix this !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            I:SetSpinBlockRotationAngle(Leg.DefiningSCI, EulerRoll)
+            GimbalSpinner(I,Leg.DefiningSCI, Quaternion.FromToRotation(Vector3.forward, DesiredDirection))
         else
             MyLog(I,0,"ERROR:    movement not possible")
         end
