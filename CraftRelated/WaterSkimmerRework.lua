@@ -132,6 +132,7 @@ function WaterSkimmerUpdate(I)
     local ConstructYaw = I:GetConstructYaw()
     local ConstructUpVector = I:GetConstructUpVector()
     local InverseCraftRotation = Quaternion.Inverse(Quaternion.Euler(ConstructPitch, -ConstructYaw, ConstructRoll))
+    I:Log("line 135: InverseCraftRotation: "..tostring(InverseCraftRotation))
     for key, Leg in pairs(WSLegs) do
         local Parents = Leg.Parents
         local SubConstructInfo = I:GetSubConstructInfo(Parents[1])
@@ -139,35 +140,37 @@ function WaterSkimmerUpdate(I)
         local LocalLegPosition = SubConstructInfo.LocalPosition
         local Lenght1 = Leg.InitialLegPieceVector[2].magnitude
         local Lenght2 = Leg.InitialLegPieceVector[3].magnitude
-        local Vec1 = Vector3.up
         local LegOffset = Vector3(2,0,40) -- offset relative to leg orientation (right, up, forward)
         if Leg.FlipX then
             LegOffset.x = -LegOffset.x
-            Vec1 = -Vec1
         end
-        local LocalOffset = Vector3(0,0,0) -- offset relative to craft
+        local RollShift = math.sin(ConstructRoll*math.pi/180)*(Lenght1+Lenght2)/4
+        RollShift = 0
+        local LocalOffset = Vector3(RollShift,0,0) -- offset relative to craft
         local GlobalOffset = Vector3(GlobalLegPosition.x ,-2 ,GlobalLegPosition.z) -- offset in global space
         local LocalTargetPos = Quaternion.Inverse(Leg.IdleRotation) * (InverseCraftRotation * (GlobalOffset - GlobalLegPosition + Leg.IdleRotation * Quaternion.AngleAxis(-ConstructYaw, Vector3.up) * LegOffset) + LocalOffset)
         local Angles = GetLegAngle(LocalTargetPos,Lenght1,Lenght2)
         local alpha = Angles.alpha * 180 / math.pi
         local betha = Angles.betha * 180 / math.pi
         local yaw = Angles.yaw * 180 / math.pi
-
         local DesiredDirection = Vector3(I:GetConstructForwardVector().x,0,I:GetConstructForwardVector().z).normalized
+        if I:GetVelocityVector().magnitude > 35 and false then
+            DesiredDirection = Vector3(I:GetVelocityVector().x,0,I:GetVelocityVector().z).normalized 
+        end
         local YawRequest = I:GetPropulsionRequest(5)
         local PerfectYawDirection = (I:GetSubConstructInfo(Leg.DefiningSCI).Position - I:GetConstructPosition())
 
         PerfectYawDirection.y = 0
         PerfectYawDirection = (Quaternion.AngleAxis(90, Vector3.up) * PerfectYawDirection).normalized
 
-        DesiredDirection = (PerfectYawDirection * YawRequest + DesiredDirection * (1-math.abs(YawRequest))^2).normalized
+        local InterpolDirection = (PerfectYawDirection * YawRequest + DesiredDirection * (1-math.abs(YawRequest))^2).normalized
 
         if (Lenght1 + Lenght2)*0.95 > math.sqrt(LocalTargetPos.x^2+LocalTargetPos.z^2) and alpha == alpha and betha == betha and yaw == yaw then
 
             I:SetSpinBlockRotationAngle(Parents[1], yaw) -- yawing entire leg
             I:SetSpinBlockRotationAngle(Parents[2], alpha) -- first segment
             I:SetSpinBlockRotationAngle(Parents[3], betha) -- second segment
-            GimbalSpinner(I,Leg.DefiningSCI, Quaternion.FromToRotation(Vector3.forward, DesiredDirection))
+            GimbalSpinner(I,Leg.DefiningSCI, Quaternion.FromToRotation(Vector3.forward, InterpolDirection))
         else
             MyLog(I,0,"ERROR:    movement not possible")
         end
