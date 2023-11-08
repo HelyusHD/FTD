@@ -1,5 +1,3 @@
--- DAs ist ein test.
-
 LegCodeWord = "WSLeg"
 DebugLevel = 50
 
