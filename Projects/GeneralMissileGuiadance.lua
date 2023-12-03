@@ -1,3 +1,13 @@
+---
+---Enumerations for Logging purposes
+---
+ERROR = 0
+WARNING = 1
+SYSTEM = 2
+LISTS = 3
+VECTORS = 4
+--This could be changed to something like: https://stefano-m.github.io/lua-enum/
+--But should suffice for here
 DebugLevel = LISTS -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 --LISTS: length of lists
 
@@ -23,7 +33,7 @@ GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01"},
                     {"missiles 02",   "missile ai 02",     "Diving01"},
                     {"missiles 03",   "missile ai 03",     "Diving01"},
                     {"missiles 04",   "missile ai 04",     "Diving01"},
-                    {"missiles 05",   "missile ai 05",     "Diving01"}
+                    {"missiles 05",   "missile ai 01",     "Bombing01"}
                     }
 
 -- missile behaviours --
@@ -51,10 +61,9 @@ GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01"},
 
 
 --                BehaviourPattern    FlightBehaviourName   CruisingAltitude   DivingRadius     (#unfinished)
-MissileBehaviours = { {"Diving",       "Diving01",           200,               500         } -- flies on CruisingAltitude till being within DivingRadius, when it strickes down on enemy
+MissileBehaviours = { {"Diving",       "Diving01",           200,               500         }, -- flies on CruisingAltitude till being within DivingRadius, when it strickes down on enemy
+                      {"Bombing",      "Bombing01"                                          }
                     }
-
-
 
 
 
@@ -99,8 +108,9 @@ function GeneralGuidanceUpdate(I)
                     if MissileData[luaTransceiverIndex][missileIndex] == nil then MissileData[luaTransceiverIndex][missileIndex] = {} end
 
                     -- here the correct MissileControl function is selected
-                    if BehaviourPattern == "Diving" then MissileControlDiving(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition);           matched = true end
-                    if BehaviourPattern == "CustomCurve" then MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition); matched = true end
+                    if BehaviourPattern == "Diving"         then MissileControlDiving(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition); matched = true end
+                    if BehaviourPattern == "CustomCurve"    then MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition); matched = true end
+                    if BehaviourPattern == "Bombing"        then MissileControlBomb(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition); matched = true end
                     -- more behaviours to come #EDITHERE
 
                     if not matched then MyLog(I,WARNING,"WARNING:  GuidanceGroup with LaunchpadName ".. GuidanceGroupData[1].. " has no working MissileBehaviour!") end
@@ -237,6 +247,11 @@ end
 
 
 
+-- lets missiles with no propulsion glide onto the enemie
+function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
+    local aimPoint  = AimPointPosition
+    I:SetLuaControlledMissileAimPoint(lti,mi,aimPoint.x,aimPoint.y,aimPoint.z)
+end
 
 
 
@@ -257,15 +272,3 @@ function MyLog(I,priority,message)
         I:Log(message)
     end
 end
-
-
----
----Enumerations for Logging purposes
----
-ERROR = 0
-WARNING = 1
-SYSTEM = 2
-LISTS = 3
-VECTORS = 4
---This could be changed to something like: https://stefano-m.github.io/lua-enum/
---But should suffice for here
