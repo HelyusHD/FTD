@@ -71,8 +71,11 @@ MissileBehaviours = { {"Diving",       "Diving01",          200,               5
                       {"Bombing",      "Bombing01",         30,                20          }
                     }
 
+-- prediction guidance --
+-----------------------------------------------------------------------------------------
 
-
+-- All MissileBehaviours come with a prediction guidance.
+-- As far as I know, there is no reason to disable it, so you can not disable it.
 
 
 -- This function is called each game tick by the game engine
@@ -103,11 +106,13 @@ function GeneralGuidanceUpdate(I)
             local TargetInfo = I:GetTargetInfo(GuidanceGroupData.MainframeId, 0)
             local AimPointPosition = TargetInfo.AimPointPosition
             local BehaviourPattern = MissileBehaviour[1]
+            local GameTime = I:GetGameTime()
 
             -- iterates launchpads
             for key, luaTransceiverIndex in pairs(GuidanceGroupData.luaTransceiverIndexes) do
                 -- iterates missiles
                 for missileIndex=0 , I:GetLuaControlledMissileCount(luaTransceiverIndex)-1 do
+                    AimPointPosition = MissilePredictionGuiadance(TargetInfo,I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex),AimPointPosition,GameTime,I)
                     local matched = false
                     if MissileData[luaTransceiverIndex] == nil then MissileData[luaTransceiverIndex] = {} end
                     if MissileData[luaTransceiverIndex][missileIndex] == nil then MissileData[luaTransceiverIndex][missileIndex] = {} end
@@ -123,6 +128,7 @@ function GeneralGuidanceUpdate(I)
             end
         end
     end
+    ClearMissileDataPG(GameTime)
 end
 
 
@@ -270,7 +276,6 @@ function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
 
     local m_apt_PlaneVector = Vector3(AimPointPosition.x,0,AimPointPosition.z) - Vector3(Position.x,0,Position.z)
     local alpha = -math.atan2(m_apt_Vector.y,m_apt_PlaneVector.magnitude)
-    I:Log(alpha)
     if m_apt_PlaneVector.magnitude < DivingRadius then
         aimPoint = AimPointPosition
     -- if we are already above the enemy, we can just dive 
@@ -308,7 +313,72 @@ end
 
 
 
+MissileDataPG = {}
 
+-- corrects missile flight path based on enemy position, missile position, where you are aiming (waypoints work as well), the game time, additional time needed for waypoint navigation
+-- Dont forget to run ClearMissileDataPG() as well to clear the list MissileDataPG !
+function MissilePredictionGuiadance(TargetInfo,LuaControlledMissileInfo,AimPointPosition,GameTime,I,InterceptionTimeOffset)
+    local MissileId = LuaControlledMissileInfo.Id
+    if MissileDataPG[MissileId] == nil then MissileDataPG[MissileId] = {} end
+
+    MissileDataPG[MissileId].LastAlive = GameTime
+
+    local TargetPosition = TargetInfo.Position
+    local TargetVelocity = TargetInfo.Velocity
+    local AimPointOffset = AimPointPosition - TargetPosition
+    -- calculate acceleration of the target
+    if MissileDataPG[MissileId].TargetAcceleration == nil then
+        TargetAcceleration = Vector3(0,0,0)
+    else
+        TargetAcceleration = (TargetVelocity - MissileDataPG[MissileId].TargetAcceleration) * 40
+    end
+    MissileDataPG[MissileId].TargetAcceleration = TargetVelocity
+
+
+
+    local MissilePosition = LuaControlledMissileInfo.Position
+    local MissileVelocity = LuaControlledMissileInfo.Velocity
+    -- calculate acceleration of missile
+    if MissileDataPG[MissileId].MissileVelocity == nil then
+        MissileAcceleration = Vector3(0,0,0)
+    else
+        MissileAcceleration = (MissileVelocity - MissileDataPG[MissileId].MissileVelocity) * 40
+    end
+    MissileDataPG[MissileId].MissileVelocity = MissileVelocity
+
+
+
+    local PositionDifference = (MissilePosition-TargetPosition).magnitude
+    local VelocityDifference = (MissileVelocity-TargetVelocity).magnitude
+    local AccelerationDifference = (MissileAcceleration-TargetAcceleration).magnitude
+    a = (VelocityDifference/AccelerationDifference)^2
+    b = (2*PositionDifference/AccelerationDifference)
+
+    --if a > b then
+    if true then
+
+        --local InterceptionTime = math.sqrt( a - b ) - VelocityDifference/AccelerationDifference
+        local InterceptionTime = PositionDifference / VelocityDifference
+        local InterceptionPosition = TargetPosition + TargetVelocity * InterceptionTime + TargetAcceleration * InterceptionTime^2 / 2
+        --I:Log(tostring(InterceptionTime).."   "..tostring(PositionDifference).."   "..tostring(VelocityDifference).."   "..tostring(AccelerationDifference).."   ")
+        return InterceptionPosition + AimPointOffset
+    else
+        local InterceptionTime = 0
+        local InterceptionPosition = TargetPosition
+        --I:Log(tostring(InterceptionTime).."   "..tostring(PositionDifference).."   "..tostring(VelocityDifference).."   "..tostring(AccelerationDifference).."   ")
+        return InterceptionPosition + AimPointOffset
+    end
+end
+
+
+
+function ClearMissileDataPG(GameTime)
+    for MissileId, Info in pairs(MissileDataPG) do
+        if Info.LastAlive ~= GameTime then
+            MissileDataPG[MissileId] = nil
+        end
+    end
+end
 
 
 
