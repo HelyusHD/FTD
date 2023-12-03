@@ -249,7 +249,47 @@ end
 
 -- lets missiles with no propulsion glide onto the enemie
 function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
-    local aimPoint  = AimPointPosition
+    local MissileInfo = I:GetLuaControlledMissileInfo(lti,mi)
+    local TimeSinceLaunch = MissileInfo.TimeSinceLaunch
+    local Position = MissileInfo.Position
+
+    local SettingA = 0.8
+    local SettingB = 20
+    local SettingC = Vector3(0,30,0)
+
+    local aimPoint = AimPointPosition + SettingC
+    local m_apt_Vector = AimPointPosition - Position
+    local ClosingVelocityXZ
+
+    local m_apt_PlaneVector = Vector3(AimPointPosition.x,0,AimPointPosition.z) - Vector3(Position.x,0,Position.z)
+    if m_apt_PlaneVector.magnitude < SettingB then
+        aimPoint = AimPointPosition
+    else
+    -- making sure that MissileData is initialized
+    -- calculates at what rate we are getting closer to the enemie, so we can adjust the diving angle
+    if MissileData[lti] ~= nil then
+        if MissileData[lti][mi] ~= nil then
+            if MissileData[lti][mi].m_apt_VectorLast ~= nil then
+                --ClosingVelocity = (m_apt_Vector - MissileData[lti][mi].m_apt_VectorLast) / (TimeSinceLaunch - MissileData[lti][mi].TimeSinceLaunchLast)
+                local VectorA = Vector3(m_apt_Vector.x,0,(m_apt_Vector.z))
+                local VectorB = Vector3(MissileData[lti][mi].m_apt_VectorLast.x,0,MissileData[lti][mi].m_apt_VectorLast.z)
+                ClosingVelocityXZ = (VectorA - VectorB) / (TimeSinceLaunch - MissileData[lti][mi].TimeSinceLaunchLast)
+
+                -- if we fall faster than we get closer in XZ, we miss the target, so we slow the falling rate by aiming up
+                if math.abs(MissileInfo.Velocity.y) > ClosingVelocityXZ.magnitude * SettingA then
+                    aimPoint = Vector3(AimPointPosition.x,MissileInfo.Position.y,AimPointPosition.z)
+                end
+            end
+        end
+    end
+    end
+    -- resets MissileData for a new missile
+    if TimeSinceLaunch < 0.1 then
+        MissileData[lti][mi] = {}
+    else
+        MissileData[lti][mi].m_apt_VectorLast = m_apt_Vector
+        MissileData[lti][mi].TimeSinceLaunchLast = TimeSinceLaunch
+    end
     I:SetLuaControlledMissileAimPoint(lti,mi,aimPoint.x,aimPoint.y,aimPoint.z)
 end
 
