@@ -90,8 +90,7 @@ MissileBehaviours = { {"Diving",       "Diving01",          200,               5
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
--- All MissileBehaviours come with a prediction guidance.
--- As far as I know, there is no reason to disable it, so you can not disable it.
+-- not done yet but available
 
 
 
@@ -137,7 +136,7 @@ function GeneralGuidanceUpdate(I)
             for key, luaTransceiverIndex in pairs(GuidanceGroupData.luaTransceiverIndexes) do
                 -- iterates missiles
                 for missileIndex=0 , I:GetLuaControlledMissileCount(luaTransceiverIndex)-1 do
-                    AimPointPosition = MissilePredictionGuiadance(TargetInfo,I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex),AimPointPosition,GameTime,I)
+                    --local PredictedAimPointPosition = MissilePredictionGuiadance(TargetInfo,I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex),AimPointPosition,GameTime,I)
                     local matched = false
                     if MissileData[luaTransceiverIndex] == nil then MissileData[luaTransceiverIndex] = {} end
                     if MissileData[luaTransceiverIndex][missileIndex] == nil then MissileData[luaTransceiverIndex][missileIndex] = {} end
