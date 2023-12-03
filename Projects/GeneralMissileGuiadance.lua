@@ -269,8 +269,13 @@ function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
     local ClosingVelocityXZ
 
     local m_apt_PlaneVector = Vector3(AimPointPosition.x,0,AimPointPosition.z) - Vector3(Position.x,0,Position.z)
+    local alpha = -math.atan2(m_apt_Vector.y,m_apt_PlaneVector.magnitude)
+    I:Log(alpha)
     if m_apt_PlaneVector.magnitude < DivingRadius then
         aimPoint = AimPointPosition
+    -- if we are already above the enemy, we can just dive 
+    elseif alpha > math.pi/3 then -- == 60 degrees 
+        aimPoint = AimPointPosition + AimPointUpShift
     else
         -- making sure that MissileData is initialized
         -- calculates at what rate we are getting closer to the enemie, so we can adjust the diving angle
@@ -284,7 +289,7 @@ function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
 
                     -- if we fall faster than we get closer in XZ, we miss the target, so we slow the falling rate by aiming up
                     if math.abs(MissileInfo.Velocity.y) > ClosingVelocityXZ.magnitude * SettingA then
-                        aimPoint = Vector3(AimPointPosition.x,MissileInfo.Position.y,AimPointPosition.z)
+                        aimPoint = Vector3(AimPointPosition.x,MissileInfo.Position.y + m_apt_PlaneVector.magnitude,AimPointPosition.z)
                     end
                 end
             end
@@ -297,7 +302,7 @@ function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
         MissileData[lti][mi].m_apt_VectorLast = m_apt_Vector
         MissileData[lti][mi].TimeSinceLaunchLast = TimeSinceLaunch
     end
-    
+
     I:SetLuaControlledMissileAimPoint(lti,mi,aimPoint.x,aimPoint.y,aimPoint.z)
 end
 
