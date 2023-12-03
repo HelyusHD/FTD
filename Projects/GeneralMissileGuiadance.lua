@@ -90,7 +90,6 @@ function GeneralGuidance(I)
     else
         GeneralGuidanceUpdate(I)
     end
-
 end
 
 
@@ -228,6 +227,7 @@ end
 
 
 -- #EDITHERE
+-- not done yet
 function MissileControlCustomCurve(I,lti,mi,MissileBehaviour,AimPointPosition)
     local MissileInfo = I:GetLuaControlledMissileInfo(lti,mi)
     local TimeSinceLaunch = MissileInfo.TimeSinceLaunch
@@ -254,6 +254,7 @@ end
 
 
 -- lets missiles with no propulsion glide onto the enemie
+-- lti = luaTransceiverIndex | mi = missileIndex
 function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
     local MissileInfo = I:GetLuaControlledMissileInfo(lti,mi)
     local TimeSinceLaunch = MissileInfo.TimeSinceLaunch
@@ -296,6 +297,7 @@ function MissileControlBomb(I,lti,mi,MissileBehaviour,AimPointPosition)
         MissileData[lti][mi].m_apt_VectorLast = m_apt_Vector
         MissileData[lti][mi].TimeSinceLaunchLast = TimeSinceLaunch
     end
+    
     I:SetLuaControlledMissileAimPoint(lti,mi,aimPoint.x,aimPoint.y,aimPoint.z)
 end
 
