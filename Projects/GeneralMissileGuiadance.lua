@@ -1,3 +1,6 @@
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 ---Enumerations for Logging purposes
 ERROR = 0
 WARNING = 1
@@ -9,13 +12,22 @@ VECTORS = 4
 DebugLevel = SYSTEM -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 --LISTS: length of lists
 -- I marked lines where I need to add more code. with "#EDITHERE"
-
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 
 --------------
 -- Settings --
 --------------
 
+-- chapters --
+-- 1. guidance groups
+-- 2. missile behaviours
+-- 3. prediction guidance
+
+
 -- guidance groups --
+-----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 -- I have already created 5 different guidance groups.
 -- You can give luanchers one of the names from "LaunchpadName" 
@@ -33,7 +45,10 @@ GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01"},
                     {"missiles 05",   "missile ai 01",     "Bombing01"}
                     }
 
+
+
 -- missile behaviours --
+-----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
 -- Here you can define different behaviours for missiles.
@@ -62,8 +77,6 @@ GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01"},
 -- BehaviourPatternName: "CustomCurve"
 -- not done yet
 
-
-
 --                BehaviourPattern    FlightBehaviourName   CruisingAltitude   DivingRadius     (#unfinished)
 MissileBehaviours = { {"Diving",       "Diving01",          200,               500         }, -- flies on CruisingAltitude till being within DivingRadius, when it strickes down on enemy
 
@@ -71,13 +84,25 @@ MissileBehaviours = { {"Diving",       "Diving01",          200,               5
                       {"Bombing",      "Bombing01",         30,                20          }
                     }
 
+
+
 -- prediction guidance --
+-----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
 -- All MissileBehaviours come with a prediction guidance.
 -- As far as I know, there is no reason to disable it, so you can not disable it.
 
 
+
+
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-- here comes my code --
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 -- This function is called each game tick by the game engine
 -- The object named "I" contains a bunch of data related to the game
 function Update(I)
