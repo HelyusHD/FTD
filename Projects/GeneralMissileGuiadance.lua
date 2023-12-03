@@ -1,6 +1,4 @@
----
 ---Enumerations for Logging purposes
----
 ERROR = 0
 WARNING = 1
 SYSTEM = 2
@@ -8,9 +6,8 @@ LISTS = 3
 VECTORS = 4
 --This could be changed to something like: https://stefano-m.github.io/lua-enum/
 --But should suffice for here
-DebugLevel = LISTS -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
+DebugLevel = SYSTEM -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 --LISTS: length of lists
-
 -- I marked lines where I need to add more code. with "#EDITHERE"
 
 
@@ -20,7 +17,7 @@ DebugLevel = LISTS -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 
 -- guidance groups --
 -----------------------------------------------------------------------------------------
--- I have already created 5 different missile groups.
+-- I have already created 5 different guidance groups.
 -- You can give luanchers one of the names from "LaunchpadName" 
 -- and they will be controlled by the Ai named like the "ControllingAiName" says
 -- and they will behave like "MissileBehaviourName" says.
