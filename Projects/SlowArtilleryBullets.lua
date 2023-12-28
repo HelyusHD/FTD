@@ -1,8 +1,7 @@
-
-mainframeIndex = 0
-targetIndex = 0
-BulletSpeed = 100 -- m/s
-CodeWord = "aim this"
+--                      ControllingAiName   BulletSpeed     WeaponName
+WeaponGroupsSetting = { {"Ai01",             100,            "aim this"},
+                        {"Ai01",             70,             "aim this 02"}
+                    }
 
 
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
@@ -25,7 +24,7 @@ function FindAllSubconstructs(I, CodeWord)
 end
 
 
-function CreateWeaponList(I)
+function CreateWeaponList(I,CodeWord)
     local WeaponSystems = {}
     local Turrets = FindAllSubconstructs(I, CodeWord)
     for _, SubConstructIdentifier in pairs(Turrets) do
@@ -80,22 +79,49 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
 end
 
 
-function Update(I)
-    local WeaponSystems = CreateWeaponList(I)
-    local TargetInfo = I:GetTargetInfo(mainframeIndex, targetIndex)
-    if TargetInfo.Valid then
-    for _, WeaponSystem in pairs(WeaponSystems) do
-        local Target = {Position = TargetInfo.Position, Velocity = TargetInfo.Velocity, Acceleration = Vector3(0,0,0)}
-        local SubConstructIdentifier = WeaponSystem.SubConstructIdentifier
-        local weaponIndex = WeaponSystem.weaponIndex
-        local Pos = I:GetWeaponInfo(weaponIndex).GlobalFirePoint
-        local Vel = BulletSpeed
-        local Mass = 1
-        local Drag = 0
-        local MaxIterationSteps = 20
-        local Accuracy = 1
-        local aim = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy).AimingDirection
-        I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
+function InitWeaponGroups(I)
+    local WeaponGroups = {}
+    for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
+        WeaponGroups[WeaponGroupId] = {}
+        local ControllingAiName = WeaponGroupInfo[1]
+        WeaponGroups[WeaponGroupId].BulletSpeed = WeaponGroupInfo[2]
+        WeaponGroups[WeaponGroupId].WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[3])
+
+        -- iterating ai mainframes
+        for index=0 ,I:Component_GetCount(26)-1 do -------------------------------------------------------------------------------------------------- not sure about indexing
+            if I:Component_GetBlockInfo(26,index).CustomName == ControllingAiName then
+                WeaponGroups[WeaponGroupId].MainframeId = index
+            end
+        end
     end
+    return WeaponGroups
+end
+
+
+function Update(I)
+    if WeaponGroups == nil then
+        WeaponGroups = InitWeaponGroups(I)
+    else
+        for _, WeaponGroup in pairs(WeaponGroups) do
+            local mainframeIndex = WeaponGroup.MainframeId
+            local WeaponSystems = WeaponGroup.WeaponSystems
+            local BulletSpeed = WeaponGroup.BulletSpeed
+            local TargetInfo = I:GetTargetInfo(mainframeIndex, 0)
+            if TargetInfo.Valid then
+                for _, WeaponSystem in pairs(WeaponSystems) do
+                    local Target = {Position = TargetInfo.AimPointPosition, Velocity = TargetInfo.Velocity, Acceleration = Vector3(0,0,0)}
+                    local SubConstructIdentifier = WeaponSystem.SubConstructIdentifier
+                    local weaponIndex = WeaponSystem.weaponIndex
+                    local Pos = I:GetWeaponInfo(weaponIndex).GlobalFirePoint
+                    local Vel = BulletSpeed
+                    local Mass = 1
+                    local Drag = 0
+                    local MaxIterationSteps = 20
+                    local Accuracy = 1
+                    local aim = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy).AimingDirection
+                    I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
+                end
+            end
+        end
     end
 end
