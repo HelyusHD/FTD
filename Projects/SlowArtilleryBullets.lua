@@ -79,8 +79,11 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
 end
 
 
-function InitWeaponGroups(I)
-    local WeaponGroups = {}
+-- creates WeaponGroups == {} which contains a {} for each WeaponGroup
+-- a WeaponGroup has information in order to fire a group of weapons:
+-- BulletSpeed, WeaponSystems == {}, MainframeId
+function SlowArtilleryInit(I)
+    WeaponGroups = {}
     for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
         WeaponGroups[WeaponGroupId] = {}
         local ControllingAiName = WeaponGroupInfo[1]
@@ -94,13 +97,14 @@ function InitWeaponGroups(I)
             end
         end
     end
-    return WeaponGroups
+    SlowArtilleryUpdateDone = true
 end
 
 
-function Update(I)
-    if WeaponGroups == nil then
-        WeaponGroups = InitWeaponGroups(I)
+-- aims and fires WeaponGroups
+function SlowArtilleryUpdate(I)
+    if SlowArtilleryUpdateDone ~= true then
+        SlowArtilleryInit(I)
     else
         for _, WeaponGroup in pairs(WeaponGroups) do
             local mainframeIndex = WeaponGroup.MainframeId
@@ -120,8 +124,19 @@ function Update(I)
                     local Accuracy = 1
                     local aim = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy).AimingDirection
                     I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
+
+                    -- checks if aim and CurrentDirection are parallel
+                    if (I:GetWeaponInfo(weaponIndex).CurrentDirection * aim.normalized) < 0.01 then
+                        I:FireWeapon(weaponIndex, 0)
+                    end
                 end
             end
         end
     end
+end
+
+
+
+function Update(I)
+    SlowArtilleryUpdate(I)
 end
