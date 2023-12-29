@@ -20,6 +20,14 @@ DebugLevel = SYSTEM -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 
 
 
+function MyLog(I,priority,message)
+    if priority <= DebugLevel then
+        I:Log(message)
+    end
+end
+
+
+
 -- returns leanght of lists containing nils
 function NilListLenght(list)
     local a = 0
@@ -162,20 +170,13 @@ function SlowArtilleryUpdate(I)
                     I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
 
                     -- checks if aim and CurrentDirection are parallel
-                    if (I:GetWeaponInfo(weaponIndex).CurrentDirection * aim.normalized) < 0.01 then
+                    I:Log(Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized))
+                    if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
                         I:FireWeapon(weaponIndex, 0)
                     end
                 end
             end
         end
-    end
-end
-
-
-
-function MyLog(I,priority,message)
-    if priority <= DebugLevel then
-        I:Log(message)
     end
 end
 
