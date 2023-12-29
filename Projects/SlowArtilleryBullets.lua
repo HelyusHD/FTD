@@ -85,6 +85,7 @@ end
 -- Drag is only aproximated as well. I recomend not using this for very slow bullets!
 
 function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
+    local Valid = false
     local Distance = (Target.Position - Pos).magnitude
     local PredictedPosition = Target.Position
     local InterceptionTime = Distance/Vel
@@ -96,18 +97,27 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
         PredictedPositionLast = PredictedPosition
         PredictedPosition = Target.Position + Target.Velocity * InterceptionTime + Target.Acceleration * InterceptionTime^2 / 2
         local Dy = PredictedPosition.y - Pos.y
+        -- Dy = Vy*t + g*t^2 /2
         Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime / 2
         local Vxz = math.sqrt(Vel^2 - Vy^2)
-        Distance = (PredictedPosition - Pos).magnitude
-        InterceptionTime = Distance/(Vel - (Vel*Drag/Mass * InterceptionTime^2 / 2))
+        --Distance = (PredictedPosition - Pos).magnitude
+        DistanceXz = Vector3(PredictedPosition.x - Pos.x, 0, PredictedPosition.z - Pos.z).magnitude
+        InterceptionTime = DistanceXz/(Vxz - (Drag/Mass * InterceptionTime^2 / 2))
         MyLog(I,SYSTEM,"SYSTEM:   Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
-        if Vel^2 < Vy^2 then return {Valid = false} end
+        if Vel^2 < Vy^2 then
+            Valid = false
+            return {Valid = Valid}
+        end
     end
 
     local Elevation = math.asin(Vy/Vel) * 180/math.pi
     local a = (Vector3(PredictedPosition.x,0,PredictedPosition.z) - Vector3(Pos.x,0,Pos.z)).normalized
     local AimingDirection = Quaternion.AngleAxis(Elevation, Vector3.Cross(a,Vector3.up).normalized) * a
-    return {AimingDirection = AimingDirection, InterceptionPoint = PredictedPosition, InterceptionTime = InterceptionTime, Elevation = Elevation, Valid = true}
+    if AimingDirection ~= nil then
+        Valid = true
+    end
+    return {AimingDirection = AimingDirection, InterceptionPoint = PredictedPosition, InterceptionTime = InterceptionTime, Elevation = Elevation, Valid = Valid}
+
 end
 
 
@@ -168,12 +178,11 @@ function SlowArtilleryUpdate(I)
                         local Pos = I:GetWeaponInfo(weaponIndex).GlobalFirePoint
                         local Vel = BulletSpeed
                         local MaxIterationSteps = 20
-                        local Accuracy = 1
+                        local Accuracy = 0.1
                         local aim = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy).AimingDirection
                         I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
 
                         -- checks if aim and CurrentDirection are parallel
-                        I:Log(Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized))
                         if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
                             I:FireWeapon(weaponIndex, 0)
                         end
