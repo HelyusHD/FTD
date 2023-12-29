@@ -1,9 +1,9 @@
 -- Set up a WeaponGroup to aim and fire all turrets whichs turret base is named like <WeaponName> says.
 -- each WeaponGroup should contain weapons with the same BulletSpeed
 
---                      ControllingAiName   BulletSpeed     WeaponName
-WeaponGroupsSetting = { {"Ai01",             100,            "aim this"},
-                        {"Ai01",             70,             "aim this 02"}
+--                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName
+WeaponGroupsSetting = { {"Ai01",             148,           80,     0.08,   "aim this"},
+                        {"Ai01",             70,            80,     0.08,   "aim this 02"}
                     }
 
 
@@ -121,7 +121,9 @@ function SlowArtilleryInit(I)
         local WeaponGroup = {}
         local ControllingAiName = WeaponGroupInfo[1]
         WeaponGroup.BulletSpeed = WeaponGroupInfo[2]
-        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[3])
+        WeaponGroup.Mass = WeaponGroupInfo[3]
+        WeaponGroup.Drag = WeaponGroupInfo[4]
+        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[5])
 
         -- iterating ai mainframes
         local matched = false
@@ -134,7 +136,7 @@ function SlowArtilleryInit(I)
         if matched then
             WeaponGroups[WeaponGroupId] = WeaponGroup
         else
-            MyLog(I,WARNING,"WARNING:   Turrets named \""..WeaponGroupInfo[3].."\" no AI named \""..ControllingAiName.."\" found")
+            MyLog(I,WARNING,"WARNING:   Turrets named \""..WeaponGroupInfo[5].."\" no AI named \""..ControllingAiName.."\" found")
         end
     end
     if NilListLenght(WeaponGroups) < 1 then 
@@ -154,25 +156,27 @@ function SlowArtilleryUpdate(I)
             local mainframeIndex = WeaponGroup.MainframeId
             local WeaponSystems = WeaponGroup.WeaponSystems
             local BulletSpeed = WeaponGroup.BulletSpeed
-            local TargetInfo = I:GetTargetInfo(mainframeIndex, 0)
-            if TargetInfo.Valid then
-                for _, WeaponSystem in pairs(WeaponSystems) do
-                    local Target = {Position = TargetInfo.AimPointPosition, Velocity = TargetInfo.Velocity, Acceleration = Vector3(0,0,0)}
-                    local SubConstructIdentifier = WeaponSystem.SubConstructIdentifier
-                    local weaponIndex = WeaponSystem.weaponIndex
-                    local Pos = I:GetWeaponInfo(weaponIndex).GlobalFirePoint
-                    local Vel = BulletSpeed
-                    local Mass = 1
-                    local Drag = 0
-                    local MaxIterationSteps = 20
-                    local Accuracy = 1
-                    local aim = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy).AimingDirection
-                    I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
+            local Mass = WeaponGroup.Mass
+            local Drag = WeaponGroup.Drag
+            if I:GetAIFiringMode(mainframeIndex) == "On" then
+                local TargetInfo = I:GetTargetInfo(mainframeIndex, 0)
+                if TargetInfo.Valid then
+                    for _, WeaponSystem in pairs(WeaponSystems) do
+                        local Target = {Position = TargetInfo.AimPointPosition, Velocity = TargetInfo.Velocity, Acceleration = Vector3(0,0,0)}
+                        local SubConstructIdentifier = WeaponSystem.SubConstructIdentifier
+                        local weaponIndex = WeaponSystem.weaponIndex
+                        local Pos = I:GetWeaponInfo(weaponIndex).GlobalFirePoint
+                        local Vel = BulletSpeed
+                        local MaxIterationSteps = 20
+                        local Accuracy = 1
+                        local aim = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy).AimingDirection
+                        I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
 
-                    -- checks if aim and CurrentDirection are parallel
-                    I:Log(Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized))
-                    if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
-                        I:FireWeapon(weaponIndex, 0)
+                        -- checks if aim and CurrentDirection are parallel
+                        I:Log(Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized))
+                        if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
+                            I:FireWeapon(weaponIndex, 0)
+                        end
                     end
                 end
             end
