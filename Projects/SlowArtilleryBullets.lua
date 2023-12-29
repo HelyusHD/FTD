@@ -20,6 +20,14 @@ DebugLevel = SYSTEM -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 
 
 
+-- returns leanght of lists containing nils
+function NilListLenght(list)
+    local a = 0
+    for _,_ in pairs(list) do a = a+1 end
+    return a
+end
+
+
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
 -- returns a list of all subconstructs with condition:
 -- <CodeWord> is part of CustomName
@@ -99,6 +107,8 @@ end
 -- a WeaponGroup has information in order to fire a group of weapons:
 -- BulletSpeed, WeaponSystems == {}, MainframeId
 function SlowArtilleryInit(I)
+    I:ClearLogs()
+    SlowArtilleryUpdateDone = true
     WeaponGroups = {}
     for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
         local WeaponGroup = {}
@@ -110,17 +120,23 @@ function SlowArtilleryInit(I)
         local matched = false
         for index=0 ,I:Component_GetCount(26)-1 do -------------------------------------------------------------------------------------------------- not sure about indexing
             if I:Component_GetBlockInfo(26,index).CustomName == ControllingAiName then
+                matched = true
                 WeaponGroup.MainframeId = index
             end
         end
         if matched then
             WeaponGroups[WeaponGroupId] = WeaponGroup
         else
-            MyLog(I,WARNING,"WARNING:   Turrets named "..WeaponGroupInfo[3].." have no controlling AI")
+            MyLog(I,WARNING,"WARNING:   Turrets named \""..WeaponGroupInfo[3].."\" no AI named \""..ControllingAiName.."\" found")
         end
     end
-    SlowArtilleryUpdateDone = true
+    I:Log(tostring(NilListLenght(WeaponGroups)))
+    if NilListLenght(WeaponGroups) < 1 then 
+        SlowArtilleryUpdateDone = false
+        MyLog(I,WARNING,"WARNING:   Could not load any WeaponGroup")
+    end
 end
+
 
 
 -- aims and fires WeaponGroups
