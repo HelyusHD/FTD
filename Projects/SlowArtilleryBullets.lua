@@ -92,7 +92,7 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
         local Vxz = math.sqrt(Vel^2 - Vy^2)
         Distance = (PredictedPosition - Pos).magnitude
         InterceptionTime = Distance/(Vel - (Vel*Drag/Mass * InterceptionTime^2 / 2))
-        I:Log("Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
+        I:MyLog(I,SYSTEM,"SYSTEM:   Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
         if Vel^2 < Vy^2 then return {Valid = false} end
     end
 
@@ -107,7 +107,6 @@ end
 -- a WeaponGroup has information in order to fire a group of weapons:
 -- BulletSpeed, WeaponSystems == {}, MainframeId
 function SlowArtilleryInit(I)
-    I:ClearLogs()
     SlowArtilleryUpdateDone = true
     WeaponGroups = {}
     for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
@@ -130,7 +129,6 @@ function SlowArtilleryInit(I)
             MyLog(I,WARNING,"WARNING:   Turrets named \""..WeaponGroupInfo[3].."\" no AI named \""..ControllingAiName.."\" found")
         end
     end
-    I:Log(tostring(NilListLenght(WeaponGroups)))
     if NilListLenght(WeaponGroups) < 1 then 
         SlowArtilleryUpdateDone = false
         MyLog(I,WARNING,"WARNING:   Could not load any WeaponGroup")
@@ -184,5 +182,6 @@ end
 
 
 function Update(I)
+    I:ClearLogs()
     SlowArtilleryUpdate(I)
 end
