@@ -2,7 +2,7 @@
 -- each WeaponGroup should contain weapons with the same BulletSpeed
 
 --                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName
-WeaponGroupsSetting = { {"Ai01",             148,           80,     0.08,   "aim this"},
+WeaponGroupsSetting = { {"Ai01",             148,           80,     0.2,   "aim this"},
                         {"Ai01",             70,            80,     0.08,   "aim this 02"}
                     }
 
@@ -172,24 +172,53 @@ function SlowArtilleryUpdate(I)
                 local TargetInfo = I:GetTargetInfo(mainframeIndex, 0)
                 if TargetInfo.Valid then
                     for _, WeaponSystem in pairs(WeaponSystems) do
-                        local Target = {Position = TargetInfo.AimPointPosition, Velocity = TargetInfo.Velocity, Acceleration = Vector3(0,0,0)}
+                        local Target = BetterTargetInfo(I, mainframeIndex, 0)
                         local SubConstructIdentifier = WeaponSystem.SubConstructIdentifier
                         local weaponIndex = WeaponSystem.weaponIndex
                         local Pos = I:GetWeaponInfo(weaponIndex).GlobalFirePoint
                         local Vel = BulletSpeed
                         local MaxIterationSteps = 20
                         local Accuracy = 0.1
-                        local aim = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy).AimingDirection
-                        I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
-
-                        -- checks if aim and CurrentDirection are parallel
-                        if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
-                            I:FireWeapon(weaponIndex, 0)
+                        local Prediction = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
+                        local aim = Prediction.AimingDirection
+                        if Prediction.Valid then
+                            I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
+                            -- checks if aim and CurrentDirection are parallel
+                            if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
+                                I:FireWeapon(weaponIndex, 0)
+                            end
                         end
                     end
                 end
             end
         end
+    end
+end
+
+
+
+function BetterTargetInfo(I, AiIndex, Prio)
+    if TargetInfos == nil then TargetInfos = {} end
+    local TargetInfo = I:GetTargetInfo(AiIndex, Prio)
+    if TargetInfos[AiIndex] == nil then TargetInfos[AiIndex] = {} end
+    if TargetInfos[AiIndex][Prio] == nil then TargetInfos[AiIndex][Prio] = {} end
+    if TargetInfo.Valid then
+        if I:GetTime() ~= TargetInfos[AiIndex][Prio].LastUpdate then
+            if TargetInfos[AiIndex][Prio].Velocity == nil then
+                TargetInfos[AiIndex][Prio].Velocity = TargetInfo.Velocity
+            end
+            local Acceleration = (TargetInfo.Velocity - TargetInfos[AiIndex][Prio].Velocity) * 40
+            TargetInfos[AiIndex][Prio] =   {Acceleration = Acceleration, Velocity = TargetInfo.Velocity, Position = TargetInfo.Position, AimPointPosition = TargetInfo.AimPointPosition, LastUpdate = I:GetTime()}
+        end
+        return TargetInfos[AiIndex][Prio]
+    else
+        TargetInfos[AiIndex][Prio] = nil
+        return  {
+                Acceleration = Vector3(0,0,0),
+                Velocity = Vector3(0,0,0),
+                Position = Vector3(0,0,0),
+                AimPointPosition = Vector3(0,0,0)
+                }
     end
 end
 
