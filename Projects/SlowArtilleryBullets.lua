@@ -7,6 +7,19 @@ WeaponGroupsSetting = { {"Ai01",             100,            "aim this"},
                     }
 
 
+
+---Enumerations for Logging purposes
+ERROR = 0
+WARNING = 1
+SYSTEM = 2
+LISTS = 3
+VECTORS = 4
+--This could be changed to something like: https://stefano-m.github.io/lua-enum/
+--But should suffice for here
+DebugLevel = SYSTEM -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
+
+
+
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
 -- returns a list of all subconstructs with condition:
 -- <CodeWord> is part of CustomName
@@ -88,16 +101,22 @@ end
 function SlowArtilleryInit(I)
     WeaponGroups = {}
     for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
-        WeaponGroups[WeaponGroupId] = {}
+        local WeaponGroup = {}
         local ControllingAiName = WeaponGroupInfo[1]
-        WeaponGroups[WeaponGroupId].BulletSpeed = WeaponGroupInfo[2]
-        WeaponGroups[WeaponGroupId].WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[3])
+        WeaponGroup.BulletSpeed = WeaponGroupInfo[2]
+        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[3])
 
         -- iterating ai mainframes
+        local matched = false
         for index=0 ,I:Component_GetCount(26)-1 do -------------------------------------------------------------------------------------------------- not sure about indexing
             if I:Component_GetBlockInfo(26,index).CustomName == ControllingAiName then
-                WeaponGroups[WeaponGroupId].MainframeId = index
+                WeaponGroup.MainframeId = index
             end
+        end
+        if matched then
+            WeaponGroups[WeaponGroupId] = WeaponGroup
+        else
+            MyLog(I,WARNING,"WARNING:   Turrets named "..WeaponGroupInfo[3].." have no controlling AI")
         end
     end
     SlowArtilleryUpdateDone = true
@@ -135,6 +154,14 @@ function SlowArtilleryUpdate(I)
                 end
             end
         end
+    end
+end
+
+
+
+function MyLog(I,priority,message)
+    if priority <= DebugLevel then
+        I:Log(message)
     end
 end
 
