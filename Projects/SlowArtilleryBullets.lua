@@ -1,3 +1,6 @@
+-- Set up a WeaponGroup to aim and fire all turrets whichs turret base is named like <WeaponName> says.
+-- each WeaponGroup should contain weapons with the same BulletSpeed
+
 --                      ControllingAiName   BulletSpeed     WeaponName
 WeaponGroupsSetting = { {"Ai01",             100,            "aim this"},
                         {"Ai01",             70,             "aim this 02"}
