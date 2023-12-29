@@ -92,7 +92,7 @@ function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
         local Vxz = math.sqrt(Vel^2 - Vy^2)
         Distance = (PredictedPosition - Pos).magnitude
         InterceptionTime = Distance/(Vel - (Vel*Drag/Mass * InterceptionTime^2 / 2))
-        I:MyLog(I,SYSTEM,"SYSTEM:   Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
+        MyLog(I,SYSTEM,"SYSTEM:   Iteration: "..Iterations.."   PredictedPosition: "..tostring(PredictedPosition).."   InterceptionTime: "..InterceptionTime.."   Vxz: "..Vxz)
         if Vel^2 < Vy^2 then return {Valid = false} end
     end
 
