@@ -1,10 +1,9 @@
 -- Set up a WeaponGroup to aim and fire all turrets whichs turret base is named like <WeaponName> says.
 -- each WeaponGroup should contain weapons with the same BulletSpeed
 
---                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName
-WeaponGroupsSetting = { {"Ai01",             148,           80,     0.2,   "aim this"},
-                        {"Ai01",             70,            80,     0.08,   "aim this 02"}
-                    }
+--                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName  Rpm
+WeaponGroupsSetting = { {"Ai01",             148,           80,     0.2,   "group01",   10}
+                      }
 
 
 
@@ -77,7 +76,7 @@ function CreateWeaponList(I,CodeWord)
     for _, SubConstructIdentifier in pairs(Turrets) do
         for weaponIndex = 0 ,I:GetWeaponCount() - 1 do
             if SubConstructIdentifier == I:GetWeaponBlockInfo(weaponIndex).SubConstructIdentifier then
-                table.insert(WeaponSystems, {SubConstructIdentifier = SubConstructIdentifier, weaponIndex = weaponIndex})
+                table.insert(WeaponSystems, {SubConstructIdentifier = SubConstructIdentifier, weaponIndex = weaponIndex, FiredLast = 0})
             end
         end
     end
@@ -150,6 +149,7 @@ function SlowArtilleryInit(I)
         WeaponGroup.Mass = WeaponGroupInfo[3]
         WeaponGroup.Drag = WeaponGroupInfo[4]
         WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[5])
+        WeaponGroup.Rpm = WeaponGroupInfo[6]
 
         -- iterating ai mainframes
         local matched = false
@@ -187,7 +187,7 @@ function SlowArtilleryUpdate(I)
             if I:GetAIFiringMode(mainframeIndex) == "On" then
                 local TargetInfo = I:GetTargetInfo(mainframeIndex, 0)
                 if TargetInfo.Valid then
-                    for _, WeaponSystem in pairs(WeaponSystems) do
+                    for WeaponSystemIndex, WeaponSystem in pairs(WeaponSystems) do
                         local Target = BetterTargetInfo(I, mainframeIndex, 0)
                         local SubConstructIdentifier = WeaponSystem.SubConstructIdentifier
                         local weaponIndex = WeaponSystem.weaponIndex
@@ -199,9 +199,16 @@ function SlowArtilleryUpdate(I)
                         local aim = Prediction.AimingDirection
                         if Prediction.Valid then
                             I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
-                            -- checks if aim and CurrentDirection are parallel
+                              -- checks if aim and CurrentDirection are parallel
                             if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
-                                I:FireWeapon(weaponIndex, 0)
+                                if WeaponGroup.Rpm ~= nil then
+                                    if WeaponSystem.FiredLast + 60/WeaponGroup.Rpm < I:GetTime() then
+                                        I:FireWeapon(weaponIndex, 0)
+                                        WeaponSystems[WeaponSystemIndex].FiredLast = I:GetTime()
+                                    end
+                                else
+                                    I:FireWeapon(weaponIndex, 0)
+                                end
                             end
                         end
                     end
@@ -257,4 +264,4 @@ end
 function Update(I)
     I:ClearLogs()
     SlowArtilleryUpdate(I)
-end
+end 
