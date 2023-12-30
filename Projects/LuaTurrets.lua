@@ -205,6 +205,7 @@ function SlowArtilleryUpdate(I)
                                     if WeaponSystem.FiredLast + 60/WeaponGroup.Rpm < I:GetTime() then
                                         I:FireWeapon(weaponIndex, 0)
                                         WeaponSystems[WeaponSystemIndex].FiredLast = I:GetTime()
+                                        
                                     end
                                 else
                                     I:FireWeapon(weaponIndex, 0)
