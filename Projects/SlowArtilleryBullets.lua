@@ -16,7 +16,7 @@ LISTS = 3
 VECTORS = 4
 --This could be changed to something like: https://stefano-m.github.io/lua-enum/
 --But should suffice for here
-DebugLevel = SYSTEM -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
+DebugLevel = WARNING -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 
 
 
@@ -26,6 +26,21 @@ function MyLog(I,priority,message)
     end
 end
 
+
+-- Function to calculate the mean of a lists values
+function calculateMean(list)
+    local sum = Vector3(0,0,0)
+
+    -- Calculate the sum of all the values
+    for _, value in ipairs(list) do
+        sum = sum + value
+    end
+
+    -- Calculate the mean
+    local mean = sum / #list
+
+    return mean
+end
 
 
 -- returns leanght of lists containing nils
@@ -126,6 +141,7 @@ end
 -- BulletSpeed, WeaponSystems == {}, MainframeId
 function SlowArtilleryInit(I)
     SlowArtilleryUpdateDone = true
+    TargetInfos = {} -- used for BetterTargetInfo()
     WeaponGroups = {}
     for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
         local WeaponGroup = {}
@@ -178,7 +194,7 @@ function SlowArtilleryUpdate(I)
                         local Pos = I:GetWeaponInfo(weaponIndex).GlobalFirePoint
                         local Vel = BulletSpeed
                         local MaxIterationSteps = 20
-                        local Accuracy = 0.1
+                        local Accuracy = 0.01
                         local Prediction = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
                         local aim = Prediction.AimingDirection
                         if Prediction.Valid then
@@ -198,17 +214,31 @@ end
 
 
 function BetterTargetInfo(I, AiIndex, Prio)
-    if TargetInfos == nil then TargetInfos = {} end
+    -- TargetInfos = {} init in SlowArtilleryInit()
+    local MeanOverN = 2 * 40
     local TargetInfo = I:GetTargetInfo(AiIndex, Prio)
     if TargetInfos[AiIndex] == nil then TargetInfos[AiIndex] = {} end
     if TargetInfos[AiIndex][Prio] == nil then TargetInfos[AiIndex][Prio] = {} end
+    if TargetInfos[AiIndex][Prio].lastAccelerationValues == nil then TargetInfos[AiIndex][Prio].lastAccelerationValues = {}; I:Log("reset2 "..I:GetTime()) end
+    if TargetInfos[AiIndex][Prio].LastUpdate == nil then TargetInfos[AiIndex][Prio].LastUpdate = I:GetTime() - 1/40 end
     if TargetInfo.Valid then
         if I:GetTime() ~= TargetInfos[AiIndex][Prio].LastUpdate then
             if TargetInfos[AiIndex][Prio].Velocity == nil then
                 TargetInfos[AiIndex][Prio].Velocity = TargetInfo.Velocity
             end
-            local Acceleration = (TargetInfo.Velocity - TargetInfos[AiIndex][Prio].Velocity) * 40
-            TargetInfos[AiIndex][Prio] =   {Acceleration = Acceleration, Velocity = TargetInfo.Velocity, Position = TargetInfo.Position, AimPointPosition = TargetInfo.AimPointPosition, LastUpdate = I:GetTime()}
+            local Acceleration = (TargetInfo.Velocity - TargetInfos[AiIndex][Prio].Velocity) / (I:GetTime() - TargetInfos[AiIndex][Prio].LastUpdate)
+            Acceleration.y = 0
+            -- Add the current value of 'a' to the end of the table
+            table.insert(TargetInfos[AiIndex][Prio].lastAccelerationValues, Acceleration)
+            -- If the table has more than MeanOverN elements, remove the oldest element (at position 1, moves all elements down by 1)
+            if #TargetInfos[AiIndex][Prio].lastAccelerationValues > MeanOverN then
+                table.remove(TargetInfos[AiIndex][Prio].lastAccelerationValues, 1)
+            end
+            TargetInfos[AiIndex][Prio].Acceleration = calculateMean(TargetInfos[AiIndex][Prio].lastAccelerationValues)
+            TargetInfos[AiIndex][Prio].Velocity = TargetInfo.Velocity
+            TargetInfos[AiIndex][Prio].Position = TargetInfo.Position
+            TargetInfos[AiIndex][Prio].AimPointPosition = TargetInfo.AimPointPosition
+            TargetInfos[AiIndex][Prio].LastUpdate = I:GetTime()
         end
         return TargetInfos[AiIndex][Prio]
     else
