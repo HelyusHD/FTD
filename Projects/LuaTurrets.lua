@@ -2,7 +2,7 @@
 -- each WeaponGroup should contain weapons with the same BulletSpeed
 
 --                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName  Rpm     Animation
-WeaponGroupsSetting = { {"Ai01",             148,           80,     0.2,   "group01",   10,     "recoil"}
+WeaponGroupsSetting = { {"Ai01",             1004,          1,      0,      "group01",  450,    "recoil"}
                       }
 
 
@@ -10,12 +10,13 @@ WeaponGroupsSetting = { {"Ai01",             148,           80,     0.2,   "grou
 ---Enumerations for Logging purposes
 ERROR = 0
 WARNING = 1
-SYSTEM = 2
-LISTS = 3
-VECTORS = 4
+SUCCESS = 2
+SYSTEM = 3
+LISTS = 4
+VECTORS = 5
 --This could be changed to something like: https://stefano-m.github.io/lua-enum/
 --But should suffice for here
-DebugLevel = WARNING -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
+DebugLevel = SUCCESS -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
 
 
 
@@ -86,7 +87,7 @@ function CreateWeaponList(I,CodeWord,AnimationName,WeaponGroup)
                 end
                 Animation.Name = AnimationName
 
-                table.insert(WeaponSystems, {SubConstructIdentifier = SubConstructIdentifier, weaponIndex = weaponIndex, FiredLast = 0}, Animation = Animation)
+                table.insert(WeaponSystems, {SubConstructIdentifier = SubConstructIdentifier, weaponIndex = weaponIndex, FiredLast = 0, Animation = Animation})
             end
         end
     end
@@ -149,7 +150,7 @@ end
 -- a WeaponGroup has information in order to fire a group of weapons:
 -- BulletSpeed, WeaponSystems == {}, MainframeId
 function LuaTurretsInit(I)
-    LuaTurretsUpdateDone = true
+    LuaTurretsInitDone = true
     TargetInfos = {} -- used for BetterTargetInfo()
     WeaponGroups = {}
     for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
@@ -158,8 +159,14 @@ function LuaTurretsInit(I)
         WeaponGroup.BulletSpeed = WeaponGroupInfo[2]
         WeaponGroup.Mass = WeaponGroupInfo[3]
         WeaponGroup.Drag = WeaponGroupInfo[4]
+        WeaponGroup.WeaponName = WeaponGroupInfo[5]
         WeaponGroup.Rpm = WeaponGroupInfo[6]
-        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[5],WeaponGroupInfo[7],WeaponGroup)
+        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroup.WeaponName,WeaponGroupInfo[7],WeaponGroup)
+        if #WeaponGroup.WeaponSystems < 1 then
+            MyLog(I,WARNING,"WARNING:   no turrets found named \""..WeaponGroup.WeaponName.."\"")
+        else
+            MyLog(I,SUCCESS,"SUCCESS:   found "..#WeaponGroup.WeaponSystems.." WeaponSystems named \""..WeaponGroup.WeaponName.."\"")
+        end
 
         -- iterating ai mainframes
         local matched = false
@@ -172,11 +179,11 @@ function LuaTurretsInit(I)
         if matched then
             WeaponGroups[WeaponGroupId] = WeaponGroup
         else
-            MyLog(I,WARNING,"WARNING:   Turrets named \""..WeaponGroupInfo[5].."\" no AI named \""..ControllingAiName.."\" found")
+            MyLog(I,WARNING,"WARNING:   Turrets named \""..WeaponGroup.WeaponName.."\" no AI named \""..ControllingAiName.."\" found")
         end
     end
     if NilListLenght(WeaponGroups) < 1 then 
-        LuaTurretsUpdateDone = false
+        LuaTurretsInitDone = false
         MyLog(I,WARNING,"WARNING:   Could not load any WeaponGroup")
     end
 end
@@ -185,8 +192,9 @@ end
 
 -- aims and fires WeaponGroups
 function LuaTurretsUpdate(I)
-    if LuaTurretsUpdateDone ~= true then
+    if LuaTurretsInitDone ~= true then
         LuaTurretsInit(I)
+        if LuaTurretsInitDone == true then MyLog(I,SUCCESS,"SUCCESS:   LuaTurretsInit() done") end
     else
         for WeaponGroupIndex, WeaponGroup in pairs(WeaponGroups) do
             local mainframeIndex = WeaponGroup.MainframeId
@@ -222,7 +230,7 @@ function LuaTurretsUpdate(I)
                                 end
                             end
                         end
-                        WeaponGroups[WeaponGroupIndex][WeaponSystemIndex].Animation = LuaTurretsAnimations(I, WeaponSystem.Animation, fired)
+                        WeaponGroups[WeaponGroupIndex].WeaponSystems[WeaponSystemIndex].Animation = LuaTurretsAnimations(I, WeaponSystem.Animation, fired)
                     end
                 end
             end
@@ -230,37 +238,6 @@ function LuaTurretsUpdate(I)
     end
 end
 
-
--- init for Recoil()
-function RecoilInit(I, TurretIdentifier, WeaponGroup)
-    for _, SpinnerIdentifier in pairs(FindAllSubconstructs(I, "recoil")) do
-        local Parent = I:GetParent(SpinnerIdentifier)
-        if TurretIdentifier == SpinnerIdentifier then
-            local Spinner_1 = SpinnerIdentifier
-            local Spinner_2 = I:GetSubConstructChildIdentifier(Spinner_1, 0)
-            local Spinner_3 = I:GetSubConstructChildIdentifier(Spinner_2, 0)
-            local Valid = (Spinner_3 ~= nil)
-
-            return {Spinner = {S1 = Spinner_1, S2 = Spinner_2, S3 = Spinner_3}, Rpm = WeaponGroup.Rpm, Valid = Valid}
-        end
-    end
-end
-
-
--- one of possible many different animations
-function Recoil(I,Animation,fired)
-    local Rpm = Animation.Rpm
-    if fired then
-        Animation.ActivatedLast = I:GetTime()
-        local Angle = 10
-        local Spinner = Animation.Spinner
-        I:SetSpinBlockRotationAngle(Spinner.S1, Angle)
-        I:SetSpinBlockRotationAngle(Spinner.S2, Angle*2)
-        I:SetSpinBlockRotationAngle(Spinner.S3, -Angle)
-    end
-
-    return Animation
-end
 
 
 -- calls the correct animation
@@ -270,6 +247,47 @@ function LuaTurretsAnimations(I, Animation, fired)
     end
     return Animation
 end
+
+-- init for Recoil()
+function RecoilInit(I, TurretIdentifier, WeaponGroup)
+    for _, SpinnerIdentifier in pairs(FindAllSubconstructs(I, "recoil")) do
+        local Parent = I:GetParent(SpinnerIdentifier)
+        if TurretIdentifier == Parent then
+            local Spinner_1 = SpinnerIdentifier
+            local Spinner_2 = I:GetSubConstructChildIdentifier(Spinner_1, 0)
+            local Spinner_3 = I:GetSubConstructChildIdentifier(Spinner_2, 0)
+            local Valid = (Spinner_3 ~= nil and Spinner_3 ~= -1)
+            I:Log(Spinner_1.." "..Spinner_2.." "..Spinner_3)
+
+            MyLog(I,SUCCESS,"SUCCESS:   loaded recoil animation for turret "..TurretIdentifier.." named "..WeaponGroup.WeaponName)
+            return {Spinner = {S1 = Spinner_1, S2 = Spinner_2, S3 = Spinner_3}, Rpm = WeaponGroup.Rpm, ActivatedLast = 0, Valid = Valid}
+        end
+    end
+    MyLog(I,WARNING,"WARNING:   Turret with ID "..TurretIdentifier.." has no working recoil animation, check spinner names")
+    return {Valid = false}
+end
+
+-- one of possible many different animations
+function Recoil(I,Animation,fired)
+    local Rpm = Animation.Rpm
+    local Spinner = Animation.Spinner
+    if fired then
+        Animation.ActivatedLast = I:GetTime()
+        local Angle = 20
+        I:SetSpinBlockRotationAngle(Spinner.S1, -Angle)
+        I:SetSpinBlockRotationAngle(Spinner.S2, Angle*2)
+        I:SetSpinBlockRotationAngle(Spinner.S3, -Angle)
+    end
+    if not fired and Animation.ActivatedLast + 60/Animation.Rpm/8 < I:GetTime() then
+        local Angle = 0
+        I:SetSpinBlockRotationAngle(Spinner.S1, -Angle)
+        I:SetSpinBlockRotationAngle(Spinner.S2, Angle*2)
+        I:SetSpinBlockRotationAngle(Spinner.S3, -Angle)
+    end
+
+    return Animation
+end
+
 
 
 -- keeps track of acceleration
@@ -315,6 +333,6 @@ end
 
 
 function Update(I)
-    I:ClearLogs()
+    if DebugLevel > SUCCESS then I:ClearLogs() end
     LuaTurretsUpdate(I)
 end 
