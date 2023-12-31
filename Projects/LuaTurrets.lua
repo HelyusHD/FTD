@@ -1,8 +1,8 @@
 -- Set up a WeaponGroup to aim and fire all turrets whichs turret base is named like <WeaponName> says.
 -- each WeaponGroup should contain weapons with the same BulletSpeed
 
---                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName  Rpm
-WeaponGroupsSetting = { {"Ai01",             148,           80,     0.2,   "group01",   10}
+--                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName  Rpm     Animation
+WeaponGroupsSetting = { {"Ai01",             148,           80,     0.2,   "group01",   10,     "recoil"}
                       }
 
 
@@ -70,13 +70,23 @@ function FindAllSubconstructs(I, CodeWord)
 end
 
 
-function CreateWeaponList(I,CodeWord)
+-- collects all informations needed to control a specific turret
+-- this includes the animations placed on a turret
+function CreateWeaponList(I,CodeWord,AnimationName,WeaponGroup)
     local WeaponSystems = {}
     local Turrets = FindAllSubconstructs(I, CodeWord)
     for _, SubConstructIdentifier in pairs(Turrets) do
         for weaponIndex = 0 ,I:GetWeaponCount() - 1 do
             if SubConstructIdentifier == I:GetWeaponBlockInfo(weaponIndex).SubConstructIdentifier then
-                table.insert(WeaponSystems, {SubConstructIdentifier = SubConstructIdentifier, weaponIndex = weaponIndex, FiredLast = 0})
+
+                -- calls the init functions for the different animations
+                local Animation = {}
+                if AnimationName == "recoil" then
+                    Animation = RecoilInit(I, SubConstructIdentifier, WeaponGroup)
+                end
+                Animation.Name = AnimationName
+
+                table.insert(WeaponSystems, {SubConstructIdentifier = SubConstructIdentifier, weaponIndex = weaponIndex, FiredLast = 0}, Animation = Animation)
             end
         end
     end
@@ -138,8 +148,8 @@ end
 -- creates WeaponGroups == {} which contains a {} for each WeaponGroup
 -- a WeaponGroup has information in order to fire a group of weapons:
 -- BulletSpeed, WeaponSystems == {}, MainframeId
-function SlowArtilleryInit(I)
-    SlowArtilleryUpdateDone = true
+function LuaTurretsInit(I)
+    LuaTurretsUpdateDone = true
     TargetInfos = {} -- used for BetterTargetInfo()
     WeaponGroups = {}
     for WeaponGroupId, WeaponGroupInfo in pairs(WeaponGroupsSetting) do
@@ -148,8 +158,8 @@ function SlowArtilleryInit(I)
         WeaponGroup.BulletSpeed = WeaponGroupInfo[2]
         WeaponGroup.Mass = WeaponGroupInfo[3]
         WeaponGroup.Drag = WeaponGroupInfo[4]
-        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[5])
         WeaponGroup.Rpm = WeaponGroupInfo[6]
+        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroupInfo[5],WeaponGroupInfo[7],WeaponGroup)
 
         -- iterating ai mainframes
         local matched = false
@@ -166,7 +176,7 @@ function SlowArtilleryInit(I)
         end
     end
     if NilListLenght(WeaponGroups) < 1 then 
-        SlowArtilleryUpdateDone = false
+        LuaTurretsUpdateDone = false
         MyLog(I,WARNING,"WARNING:   Could not load any WeaponGroup")
     end
 end
@@ -174,11 +184,11 @@ end
 
 
 -- aims and fires WeaponGroups
-function SlowArtilleryUpdate(I)
-    if SlowArtilleryUpdateDone ~= true then
-        SlowArtilleryInit(I)
+function LuaTurretsUpdate(I)
+    if LuaTurretsUpdateDone ~= true then
+        LuaTurretsInit(I)
     else
-        for _, WeaponGroup in pairs(WeaponGroups) do
+        for WeaponGroupIndex, WeaponGroup in pairs(WeaponGroups) do
             local mainframeIndex = WeaponGroup.MainframeId
             local WeaponSystems = WeaponGroup.WeaponSystems
             local BulletSpeed = WeaponGroup.BulletSpeed
@@ -197,21 +207,22 @@ function SlowArtilleryUpdate(I)
                         local Accuracy = 0.01
                         local Prediction = TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
                         local aim = Prediction.AimingDirection
+                        local fired = false
                         if Prediction.Valid then
                             I:AimWeaponInDirection(weaponIndex, aim.x,aim.y,aim.z, 0)
                               -- checks if aim and CurrentDirection are parallel
                             if 1 - Vector3.Dot(I:GetWeaponInfo(weaponIndex).CurrentDirection, aim.normalized) < 0.01 then
                                 if WeaponGroup.Rpm ~= nil then
                                     if WeaponSystem.FiredLast + 60/WeaponGroup.Rpm < I:GetTime() then
-                                        I:FireWeapon(weaponIndex, 0)
+                                        I:FireWeapon(weaponIndex, 0) ; fired = true
                                         WeaponSystems[WeaponSystemIndex].FiredLast = I:GetTime()
-                                        
                                     end
                                 else
-                                    I:FireWeapon(weaponIndex, 0)
+                                    I:FireWeapon(weaponIndex, 0) ; fired = true
                                 end
                             end
                         end
+                        WeaponGroups[WeaponGroupIndex][WeaponSystemIndex].Animation = LuaTurretsAnimations(I, WeaponSystem.Animation, fired)
                     end
                 end
             end
@@ -220,9 +231,50 @@ function SlowArtilleryUpdate(I)
 end
 
 
+-- init for Recoil()
+function RecoilInit(I, TurretIdentifier, WeaponGroup)
+    for _, SpinnerIdentifier in pairs(FindAllSubconstructs(I, "recoil")) do
+        local Parent = I:GetParent(SpinnerIdentifier)
+        if TurretIdentifier == SpinnerIdentifier then
+            local Spinner_1 = SpinnerIdentifier
+            local Spinner_2 = I:GetSubConstructChildIdentifier(Spinner_1, 0)
+            local Spinner_3 = I:GetSubConstructChildIdentifier(Spinner_2, 0)
+            local Valid = (Spinner_3 ~= nil)
 
+            return {Spinner = {S1 = Spinner_1, S2 = Spinner_2, S3 = Spinner_3}, Rpm = WeaponGroup.Rpm, Valid = Valid}
+        end
+    end
+end
+
+
+-- one of possible many different animations
+function Recoil(I,Animation,fired)
+    local Rpm = Animation.Rpm
+    if fired then
+        Animation.ActivatedLast = I:GetTime()
+        local Angle = 10
+        local Spinner = Animation.Spinner
+        I:SetSpinBlockRotationAngle(Spinner.S1, Angle)
+        I:SetSpinBlockRotationAngle(Spinner.S2, Angle*2)
+        I:SetSpinBlockRotationAngle(Spinner.S3, -Angle)
+    end
+
+    return Animation
+end
+
+
+-- calls the correct animation
+function LuaTurretsAnimations(I, Animation, fired)
+    if Animation.Name == "recoil" then
+        Animation = Recoil(I,Animation,fired)
+    end
+    return Animation
+end
+
+
+-- keeps track of acceleration
 function BetterTargetInfo(I, AiIndex, Prio)
-    -- TargetInfos = {} init in SlowArtilleryInit()
+    -- TargetInfos = {} init in LuaTurretsInit()
     local MeanOverN = 2 * 40
     local TargetInfo = I:GetTargetInfo(AiIndex, Prio)
     if TargetInfos[AiIndex] == nil then TargetInfos[AiIndex] = {} end
@@ -264,5 +316,5 @@ end
 
 function Update(I)
     I:ClearLogs()
-    SlowArtilleryUpdate(I)
+    LuaTurretsUpdate(I)
 end 
