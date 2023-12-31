@@ -2,7 +2,8 @@
 -- each WeaponGroup should contain weapons with the same BulletSpeed
 
 --                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName  Rpm     Animation
-WeaponGroupsSetting = { {"Ai01",             1004,          1,      0,      "group01",  450,    "recoil"}
+WeaponGroupsSetting = { {"Ai01",             1004,          1,      0,      "group01",  400,     "recoil"},
+                        {"Ai01",             1004,          1,      0,      "group02",  100,     "recoil"}
                       }
 
 
@@ -251,12 +252,12 @@ end
 -- init for Recoil()
 function RecoilInit(I, TurretIdentifier, WeaponGroup)
     for _, SpinnerIdentifier in pairs(FindAllSubconstructs(I, "recoil")) do
-        local Parent = I:GetParent(SpinnerIdentifier)
+        local Parent = I:GetParent(I:GetParent(I:GetParent(SpinnerIdentifier)))
         if TurretIdentifier == Parent then
-            local Spinner_1 = SpinnerIdentifier
-            local Spinner_2 = I:GetSubConstructChildIdentifier(Spinner_1, 0)
-            local Spinner_3 = I:GetSubConstructChildIdentifier(Spinner_2, 0)
-            local Valid = (Spinner_3 ~= nil and Spinner_3 ~= -1)
+            local Spinner_1 = I:GetParent(I:GetParent(SpinnerIdentifier))
+            local Spinner_2 = I:GetParent(SpinnerIdentifier)
+            local Spinner_3 = SpinnerIdentifier
+            local Valid = (Spinner_1 ~= nil and Spinner_1 ~= -1)
             I:Log(Spinner_1.." "..Spinner_2.." "..Spinner_3)
 
             MyLog(I,SUCCESS,"SUCCESS:   loaded recoil animation for turret "..TurretIdentifier.." named "..WeaponGroup.WeaponName)
@@ -271,19 +272,24 @@ end
 function Recoil(I,Animation,fired)
     local Rpm = Animation.Rpm
     local Spinner = Animation.Spinner
+    local AngleMax = 10 
+    local Fraction = 2
     if fired then
         Animation.ActivatedLast = I:GetTime()
-        local Angle = 20
-        I:SetSpinBlockRotationAngle(Spinner.S1, -Angle)
-        I:SetSpinBlockRotationAngle(Spinner.S2, Angle*2)
-        I:SetSpinBlockRotationAngle(Spinner.S3, -Angle)
     end
-    if not fired and Animation.ActivatedLast + 60/Animation.Rpm/8 < I:GetTime() then
-        local Angle = 0
-        I:SetSpinBlockRotationAngle(Spinner.S1, -Angle)
-        I:SetSpinBlockRotationAngle(Spinner.S2, Angle*2)
-        I:SetSpinBlockRotationAngle(Spinner.S3, -Angle)
+    local Dt = I:GetTime() - Animation.ActivatedLast
+    local T = 60/Animation.Rpm
+    local Angle
+    if Dt < (T/Fraction) then
+        Angle = Dt / (T/Fraction) * AngleMax
+    elseif Dt < T then
+        Angle = AngleMax * (1-((Dt-(T/Fraction))/(T-(T/Fraction))))
+    else
+        Angle = 0
     end
+    I:SetSpinBlockRotationAngle(Spinner.S1, -Angle)
+    I:SetSpinBlockRotationAngle(Spinner.S2, Angle*2)
+    I:SetSpinBlockRotationAngle(Spinner.S3, -Angle)
 
     return Animation
 end
@@ -297,7 +303,7 @@ function BetterTargetInfo(I, AiIndex, Prio)
     local TargetInfo = I:GetTargetInfo(AiIndex, Prio)
     if TargetInfos[AiIndex] == nil then TargetInfos[AiIndex] = {} end
     if TargetInfos[AiIndex][Prio] == nil then TargetInfos[AiIndex][Prio] = {} end
-    if TargetInfos[AiIndex][Prio].lastAccelerationValues == nil then TargetInfos[AiIndex][Prio].lastAccelerationValues = {}; I:Log("reset2 "..I:GetTime()) end
+    if TargetInfos[AiIndex][Prio].lastAccelerationValues == nil then TargetInfos[AiIndex][Prio].lastAccelerationValues = {} end
     if TargetInfos[AiIndex][Prio].LastUpdate == nil then TargetInfos[AiIndex][Prio].LastUpdate = I:GetTime() - 1/40 end
     if TargetInfo.Valid then
         if I:GetTime() ~= TargetInfos[AiIndex][Prio].LastUpdate then
