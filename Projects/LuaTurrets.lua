@@ -1,10 +1,25 @@
 -- Set up a WeaponGroup to aim and fire all turrets whichs turret base is named like <WeaponName> says.
 -- each WeaponGroup should contain weapons with the same BulletSpeed
 
---                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName  Rpm     Animation
-WeaponGroupsSetting = { {"Ai01",             1004,          1,      0,      "group01",  400,     "recoil"},
-                        {"Ai01",             1004,          1,      0,      "group02",  100,     "recoil"}
+--                      ControllingAiName   BulletSpeed     Mass    Drag    WeaponName  Rpm     AnimationName
+WeaponGroupsSetting = { {"Ai01",             1004,          1,      0,      "group01",  400,     "recoil01"},
+                        {"Ai01",             1004,          1,      0,      "group02",  100,     "recoil02"}
                       }
+
+
+-- Weapons may have an animation. Create an AnimationSettings and refer to it in the WeaponGroupsSetting using the AnimationName.
+-- The AnimationName decides what WeaponGroup will use what AnimationSetting.
+
+-- AnimationType: There may be different kinds of animations.
+-- AngleMax: max angle of the spinners used to create the animation.
+-- Fraction: fraction = 4 means, that the animation will be pushed in by recoil for 25% of the time
+--           and that it will use 75% of the time to extend back to starting position
+
+--                    AnimationName     AnimationType   AngleMax    Fraction
+AnimationSettings = {{"recoil01",       "recoil",       10,         2},
+                     {"recoil02",       "recoil",       30,         4}
+                    }
+
 
 
 
@@ -15,11 +30,7 @@ SUCCESS = 2
 SYSTEM = 3
 LISTS = 4
 VECTORS = 5
---This could be changed to something like: https://stefano-m.github.io/lua-enum/
---But should suffice for here
-DebugLevel = SUCCESS -- 0|ERROR  5|WARNING  10|SYSTEM  100|LISTS  200|VECTORS
-
-
+DebugLevel = SUCCESS
 
 function MyLog(I,priority,message)
     if priority <= DebugLevel then
@@ -74,7 +85,7 @@ end
 
 -- collects all informations needed to control a specific turret
 -- this includes the animations placed on a turret
-function CreateWeaponList(I,CodeWord,AnimationName,WeaponGroup)
+function CreateWeaponList(I,CodeWord,AnimationSetting,WeaponGroup)
     local WeaponSystems = {}
     local Turrets = FindAllSubconstructs(I, CodeWord)
     for _, SubConstructIdentifier in pairs(Turrets) do
@@ -83,11 +94,9 @@ function CreateWeaponList(I,CodeWord,AnimationName,WeaponGroup)
 
                 -- calls the init functions for the different animations
                 local Animation = {}
-                if AnimationName == "recoil" then
-                    Animation = RecoilInit(I, SubConstructIdentifier, WeaponGroup)
+                if AnimationSetting[2] == "recoil" then
+                    Animation = RecoilInit(I, SubConstructIdentifier, WeaponGroup, AnimationSetting)
                 end
-                Animation.Name = AnimationName
-
                 table.insert(WeaponSystems, {SubConstructIdentifier = SubConstructIdentifier, weaponIndex = weaponIndex, FiredLast = 0, Animation = Animation})
             end
         end
@@ -162,7 +171,14 @@ function LuaTurretsInit(I)
         WeaponGroup.Drag = WeaponGroupInfo[4]
         WeaponGroup.WeaponName = WeaponGroupInfo[5]
         WeaponGroup.Rpm = WeaponGroupInfo[6]
-        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroup.WeaponName,WeaponGroupInfo[7],WeaponGroup)
+
+        for _, AnimationSetting in pairs(AnimationSettings) do
+            if AnimationSetting[1] == WeaponGroupInfo[7] then
+                WeaponGroup.AnimationSetting = AnimationSetting
+            end
+        end
+
+        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroup.WeaponName,WeaponGroup.AnimationSetting,WeaponGroup)
         if #WeaponGroup.WeaponSystems < 1 then
             MyLog(I,WARNING,"WARNING:   no turrets found named \""..WeaponGroup.WeaponName.."\"")
         else
@@ -243,14 +259,14 @@ end
 
 -- calls the correct animation
 function LuaTurretsAnimations(I, Animation, fired)
-    if Animation.Name == "recoil" then
+    if Animation.Type == "recoil" then
         Animation = Recoil(I,Animation,fired)
     end
     return Animation
 end
 
 -- init for Recoil()
-function RecoilInit(I, TurretIdentifier, WeaponGroup)
+function RecoilInit(I, TurretIdentifier, WeaponGroup, AnimationSetting)
     for _, SpinnerIdentifier in pairs(FindAllSubconstructs(I, "recoil")) do
         local Parent = I:GetParent(I:GetParent(I:GetParent(SpinnerIdentifier)))
         if TurretIdentifier == Parent then
@@ -258,10 +274,14 @@ function RecoilInit(I, TurretIdentifier, WeaponGroup)
             local Spinner_2 = I:GetParent(SpinnerIdentifier)
             local Spinner_3 = SpinnerIdentifier
             local Valid = (Spinner_1 ~= nil and Spinner_1 ~= -1)
-            I:Log(Spinner_1.." "..Spinner_2.." "..Spinner_3)
-
             MyLog(I,SUCCESS,"SUCCESS:   loaded recoil animation for turret "..TurretIdentifier.." named "..WeaponGroup.WeaponName)
-            return {Spinner = {S1 = Spinner_1, S2 = Spinner_2, S3 = Spinner_3}, Rpm = WeaponGroup.Rpm, ActivatedLast = 0, Valid = Valid}
+            return {Spinner         = { S1 = Spinner_1,S2 = Spinner_2, S3 = Spinner_3},
+                    Rpm             = WeaponGroup.Rpm,
+                    ActivatedLast   = 0,
+                    Valid           = Valid,
+                    Type            = AnimationSetting[2],
+                    AngleMax        = AnimationSetting[3],
+                    Fraction        = AnimationSetting[4]}
         end
     end
     MyLog(I,WARNING,"WARNING:   Turret with ID "..TurretIdentifier.." has no working recoil animation, check spinner names")
@@ -272,8 +292,8 @@ end
 function Recoil(I,Animation,fired)
     local Rpm = Animation.Rpm
     local Spinner = Animation.Spinner
-    local AngleMax = 10 
-    local Fraction = 2
+    local AngleMax = Animation.AngleMax 
+    local Fraction = Animation.Fraction
     if fired then
         Animation.ActivatedLast = I:GetTime()
     end
