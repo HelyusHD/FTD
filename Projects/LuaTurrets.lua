@@ -15,10 +15,11 @@ WeaponGroupsSetting = { {"Ai01",             1004,          1,      0,      "gro
 -- Fraction: fraction = 4 means, that the animation will be pushed in by recoil for 25% of the time
 --           and that it will use 75% of the time to extend back to starting position
 -- SpinnerName: the name of the most outward spinner of 3 stacked spinners, which create the movement
+-- Resting: the fraction of the forward moving motion, that the absorber rests waiting for the gun to fire
 
---                    AnimationName     AnimationType   AngleMax    Fraction    SpinnerName
-AnimationSettings = {{"recoil01",       "recoil",       10,         2,          "recoil"},
-                     {"recoil02",       "recoil",       30,         4,          "recoil"}
+--                    AnimationName     AnimationType   AngleMax    Fraction    SpinnerName     Resting
+AnimationSettings = {{"recoil01",       "recoil",       10,         2,          "recoil",       0},
+                     {"recoil02",       "recoil",       30,         4,          "recoil",       0}
                     }
 
 
@@ -291,7 +292,9 @@ function RecoilInit(I, TurretIdentifier, WeaponGroup, AnimationSetting)
                     Valid           = Valid,
                     Type            = AnimationSetting[2],
                     AngleMax        = AnimationSetting[3],
-                    Fraction        = AnimationSetting[4]}
+                    Fraction        = AnimationSetting[4],
+                    Resting         = AnimationSetting[6]
+                }
         end
     end
     MyLog(I,WARNING,"WARNING:   Turret with ID "..TurretIdentifier.." has no working recoil animation, check spinner names")
@@ -304,16 +307,20 @@ function Recoil(I,Animation,fired)
     local Spinner = Animation.Spinner
     local AngleMax = Animation.AngleMax 
     local Fraction = Animation.Fraction
+    local Resting = Animation.Resting
+    
+    local T = 60/Animation.Rpm
+    local back = T/Fraction -- time the absorber takes to move back
+    local resting = (T-back) * Resting
     if fired then
         Animation.ActivatedLast = I:GetTime()
     end
     local Dt = I:GetTime() - Animation.ActivatedLast
-    local T = 60/Animation.Rpm
     local Angle
-    if Dt < (T/Fraction) then
-        Angle = Dt / (T/Fraction) * AngleMax
-    elseif Dt < T then
-        Angle = AngleMax * (1-((Dt-(T/Fraction))/(T-(T/Fraction))))
+    if Dt < back then
+        Angle = Dt / back * AngleMax
+    elseif Dt < T-resting then
+        Angle = AngleMax * (1-((Dt-back)/(T-back-resting)))
     else
         Angle = 0
     end
