@@ -255,6 +255,11 @@ function LuaTurretsUpdate(I)
                         WeaponGroups[WeaponGroupIndex].WeaponSystems[WeaponSystemIndex].Animation = LuaTurretsAnimations(I, WeaponSystem.Animation, fired)
                     end
                 end
+            else
+                -- keep updating animations
+                for WeaponSystemIndex, WeaponSystem in pairs(WeaponSystems) do
+                    WeaponGroups[WeaponGroupIndex].WeaponSystems[WeaponSystemIndex].Animation = LuaTurretsAnimations(I, WeaponSystem.Animation, false)
+                end
             end
         end
     end
