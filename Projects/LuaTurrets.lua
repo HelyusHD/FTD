@@ -14,10 +14,11 @@ WeaponGroupsSetting = { {"Ai01",             1004,          1,      0,      "gro
 -- AngleMax: max angle of the spinners used to create the animation.
 -- Fraction: fraction = 4 means, that the animation will be pushed in by recoil for 25% of the time
 --           and that it will use 75% of the time to extend back to starting position
+-- SpinnerName: the name of the most outward spinner of 3 stacked spinners, which create the movement
 
---                    AnimationName     AnimationType   AngleMax    Fraction
-AnimationSettings = {{"recoil01",       "recoil",       10,         2},
-                     {"recoil02",       "recoil",       30,         4}
+--                    AnimationName     AnimationType   AngleMax    Fraction    SpinnerName
+AnimationSettings = {{"recoil01",       "recoil",       10,         2,          "recoil"},
+                     {"recoil02",       "recoil",       30,         4,          "recoil"}
                     }
 
 
@@ -85,7 +86,9 @@ end
 
 -- collects all informations needed to control a specific turret
 -- this includes the animations placed on a turret
-function CreateWeaponList(I,CodeWord,AnimationSetting,WeaponGroup)
+function CreateWeaponList(I,WeaponGroup)
+    local CodeWord = WeaponGroup.WeaponName
+    local AnimationSetting = WeaponGroup.AnimationSetting
     local WeaponSystems = {}
     local Turrets = FindAllSubconstructs(I, CodeWord)
     for _, SubConstructIdentifier in pairs(Turrets) do
@@ -175,10 +178,11 @@ function LuaTurretsInit(I)
         for _, AnimationSetting in pairs(AnimationSettings) do
             if AnimationSetting[1] == WeaponGroupInfo[7] then
                 WeaponGroup.AnimationSetting = AnimationSetting
+                break
             end
         end
 
-        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroup.WeaponName,WeaponGroup.AnimationSetting,WeaponGroup)
+        WeaponGroup.WeaponSystems = CreateWeaponList(I,WeaponGroup)
         if #WeaponGroup.WeaponSystems < 1 then
             MyLog(I,WARNING,"WARNING:   no turrets found named \""..WeaponGroup.WeaponName.."\"")
         else
@@ -191,6 +195,7 @@ function LuaTurretsInit(I)
             if I:Component_GetBlockInfo(26,index).CustomName == ControllingAiName then
                 matched = true
                 WeaponGroup.MainframeId = index
+                break
             end
         end
         if matched then
@@ -267,7 +272,7 @@ end
 
 -- init for Recoil()
 function RecoilInit(I, TurretIdentifier, WeaponGroup, AnimationSetting)
-    for _, SpinnerIdentifier in pairs(FindAllSubconstructs(I, "recoil")) do
+    for _, SpinnerIdentifier in pairs(FindAllSubconstructs(I, AnimationSetting[5])) do
         local Parent = I:GetParent(I:GetParent(I:GetParent(SpinnerIdentifier)))
         if TurretIdentifier == Parent then
             local Spinner_1 = I:GetParent(I:GetParent(SpinnerIdentifier))
