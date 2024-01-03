@@ -367,3 +367,54 @@ function Update(I)
     if DebugLevel > SUCCESS then I:ClearLogs() end
     LuaTurretsUpdate(I)
 end 
+
+
+-- attempt to define weaponGroup as an object
+local function weaponGroup(I,WeaponGroupInfo,AnimationSettings)
+
+    local function animationSetting(AnimationName)
+        for _, AnimationSetting in pairs(AnimationSettings) do
+            if AnimationSetting[1] == AnimationName then
+                return AnimationSetting
+            end
+        end
+    end
+
+    local function weaponSystems()
+        WeaponList = CreateWeaponList(I)
+        if #WeaponList < 1 then
+            MyLog(I,WARNING,"WARNING:   no turrets found named \""..WeaponList.."\"")
+        else
+            MyLog(I,SUCCESS,"SUCCESS:   found "..#WeaponList.." WeaponSystems named \""..WeaponGroupInfo[5].."\"")
+        end
+        return WeaponList
+    end
+
+    local function mainframeId()
+        -- iterating ai mainframes
+        local matched = false
+        local Id
+        for index=0 ,I:Component_GetCount(26)-1 do -------------------------------------------------------------------------------------------------- not sure about indexing
+            if I:Component_GetBlockInfo(26,index).CustomName == WeaponGroupInfo[1] then
+                matched = true
+                    Id = index
+                break
+            end
+        end
+        if not matched then
+            MyLog(I,WARNING,"WARNING:   Turrets named \""..WeaponGroup.WeaponName.."\" no AI named \""..WeaponGroupInfo[1].."\" found")
+        end
+        return Id
+    end
+
+    return {
+        BulletSpeed = WeaponGroupInfo[2],
+        Mass = WeaponGroupInfo[3],
+        Drag = WeaponGroupInfo[4],
+        WeaponName = WeaponGroupInfo[5],
+        Rpm = WeaponGroupInfo[6],
+        AnimationSetting = animationSetting(WeaponGroupInfo[7]),
+        WeaponSystems = weaponSystems(),
+        MainframeId = mainframeId()
+    }
+end
