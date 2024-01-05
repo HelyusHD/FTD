@@ -126,16 +126,16 @@ end
 
 function TargetPrediction(I,Target,Pos,Vel,Mass,Drag,MaxIterationSteps,Accuracy)
     local Valid = false
-    local Distance = (Target.Position - Pos).magnitude
-    local PredictedPosition = Target.Position
+    local Distance = (Target.AimPointPosition - Pos).magnitude
+    local PredictedPosition = Target.AimPointPosition
     local InterceptionTime = Distance/Vel
-    local PredictedPositionLast = Target.Position + Target.Position.normalized * (Accuracy+1)
+    local PredictedPositionLast = Target.AimPointPosition + Target.AimPointPosition.normalized * (Accuracy+1)
     local Iterations = 0
     local Vy
     while (PredictedPosition - PredictedPositionLast).magnitude > Accuracy and Iterations < MaxIterationSteps do
         Iterations = Iterations + 1
         PredictedPositionLast = PredictedPosition
-        PredictedPosition = Target.Position + Target.Velocity * InterceptionTime + Target.Acceleration * InterceptionTime^2 / 2
+        PredictedPosition = Target.AimPointPosition + Target.Velocity * InterceptionTime + Target.Acceleration * InterceptionTime^2 / 2
         local Dy = PredictedPosition.y - Pos.y
         -- Dy = Vy*t + g*t^2 /2
         Vy = Dy/InterceptionTime - I:GetGravityForAltitude(Pos.y + Dy/2).y*InterceptionTime / 2
