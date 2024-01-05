@@ -22,7 +22,8 @@ AnimationSettings = {{"recoil01",       "recoil",       10,         2,          
                      {"recoil02",       "recoil",       30,         4,          "recoil",       0}
                     }
 
-
+-- acceleration is avaraged over so many seconds
+AccAvTime = 2
 
 
 ---Enumerations for Logging purposes
@@ -336,7 +337,7 @@ end
 -- keeps track of acceleration
 function BetterTargetInfo(I, AiIndex, Prio)
     -- TargetInfos = {} init in LuaTurretsInit()
-    local MeanOverN = 2 * 40
+    local MeanOverN = AccAvTime * 40
     local TargetInfo = I:GetTargetInfo(AiIndex, Prio)
     if TargetInfos[AiIndex] == nil then TargetInfos[AiIndex] = {} end
     if TargetInfos[AiIndex][Prio] == nil then TargetInfos[AiIndex][Prio] = {} end
