@@ -35,6 +35,8 @@ cat.feed(cat)
 local function Dog(name, breed)
     local Dog = Pet(name)
     Dog.breed = breed
+    
+    return Dog
 end
 
 
