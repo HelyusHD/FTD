@@ -59,7 +59,7 @@ end
 
 
 function time_(update_every_ticks)
-    local Time = channel_("1",80)
+    local Time = channel_("1",update_every_ticks)
     Time.update_every_ticks = update_every_ticks
     Time.ticks_since_last_timeprint = 0
     function Time:GameTime(I)
