@@ -18,7 +18,7 @@ end
 -- the object sends characters to a breadboard
 -- the breadboard sums all characters up and sends them to any component (like signs)
 -- we do this because LUA can not interact with string arguments of any blocks, but the bb can!
-TickThreshold = 2
+TickThreshold = 1
 function channel_(axisname, tick_clamp_max) 
     local channel = {
         axisname = axisname,  -- custom axisname used to send the signal
