@@ -5,7 +5,7 @@
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
-GuidanceGroups =  { 
+MissileControllers =  { 
 --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName
     {"missiles 01",   "missile ai 01",     "Diving01",              "Default01"},
     {"missiles 02",   "missile ai 01",     "Straight01",            "Apn01"}
@@ -78,18 +78,18 @@ end
 
 -- This is what controls the launchpads
 function GeneralGuidanceUpdate(I)
-    -- iterates GuidanceGroups
-    for GuidanceGroupId, GuidanceGroupData in pairs(GuidanceGroups) do
-        if GuidanceGroupData.Valid then
-            local MissileBehaviour = MissileBehaviours[GuidanceGroupData.MissileBehaviourId]
-            local MissileGuidance = MissileGuidances[GuidanceGroupData.MissileGuidanceId]
-            local TargetInfo = I:GetTargetInfo(GuidanceGroupData.MainframeId, 0)
+    -- iterates MissileControllers
+    for MissileControllerId, MissileControllerData in pairs(MissileControllers) do
+        if MissileControllerData.Valid then
+            local MissileBehaviour = MissileBehaviours[MissileControllerData.MissileBehaviourId]
+            local MissileGuidance = MissileGuidances[MissileControllerData.MissileGuidanceId]
+            local TargetInfo = I:GetTargetInfo(MissileControllerData.MainframeId, 0)
             local AimPointPosition = TargetInfo.AimPointPosition
             local BehaviourType = MissileBehaviour[1]
             local GameTime = I:GetGameTime()
 
             -- iterates launchpads
-            for _, luaTransceiverIndex in pairs(GuidanceGroupData.luaTransceiverIndexes) do
+            for _, luaTransceiverIndex in pairs(MissileControllerData.luaTransceiverIndexes) do
                 -- iterates missiles
                 for missileIndex=0 , I:GetLuaControlledMissileCount(luaTransceiverIndex)-1 do
                     local matched = false
@@ -97,7 +97,7 @@ function GeneralGuidanceUpdate(I)
                     if MissileData[Id] == nil then MissileData[Id] = {} end
                     MissileData[Id].Alive = true
 
-                    -- if the GuidanceGroup has a prediction routine enabled, the AimPointPosition will be adjusted
+                    -- if the MissileController has a prediction routine enabled, the AimPointPosition will be adjusted
                     local AimPoint = AimPointPosition
                     if MissileGuidance ~= nil then
                         if MissileGuidance[1] == "Default" then AimPoint = AimPoint
@@ -114,7 +114,7 @@ function GeneralGuidanceUpdate(I)
                     end
                     -- more behaviours to come #EDITHERE
 
-                    if not matched then MyLog(I,WARNING,"WARNING:  GuidanceGroup with LaunchpadName ".. GuidanceGroupData[1].. " has no working MissileBehaviour!") end
+                    if not matched then MyLog(I,WARNING,"WARNING:  MissileController with LaunchpadName ".. MissileControllerData[1].. " has no working MissileBehaviour!") end
                 end
             end
         end
@@ -143,15 +143,15 @@ function GeneralGuidanceInit(I)
     -- a list containing a set of data for each missile
     MissileData = {}
 
-    -- iterates GuidanceGroups
+    -- iterates MissileControllers
     local LuaTransceiverCount = I:GetLuaTransceiverCount()
-    for GuidanceGroupId, GuidanceGroupData in pairs(GuidanceGroups) do
-        local LaunchpadName = GuidanceGroupData[1]
-        local ControllingAiName = GuidanceGroupData[2]
-        local MissileBehaviourName = GuidanceGroupData[3]
-        local PredictionName = GuidanceGroupData[4]
+    for MissileControllerId, MissileControllerData in pairs(MissileControllers) do
+        local LaunchpadName = MissileControllerData[1]
+        local ControllingAiName = MissileControllerData[2]
+        local MissileBehaviourName = MissileControllerData[3]
+        local PredictionName = MissileControllerData[4]
 
-        local GuidanceGroupIsSetUpCorrect = true
+        local MissileControllerIsSetUpCorrect = true
 
         -- finds all the launchpads Ids
         local LaunchpadIds = {}
@@ -161,40 +161,40 @@ function GeneralGuidanceInit(I)
                 table.insert(LaunchpadIds,luaTransceiverIndex)
             end
         end
-        GuidanceGroups[GuidanceGroupId].luaTransceiverIndexes = LaunchpadIds
-        if #LaunchpadIds == 0 then MyLog(I,WARNING,"WARNING:  GuidanceGroup with LaunchpadName "..LaunchpadName.. " has no assigned launchpads!"); GuidanceGroupIsSetUpCorrect = false end
+        MissileControllers[MissileControllerId].luaTransceiverIndexes = LaunchpadIds
+        if #LaunchpadIds == 0 then MyLog(I,WARNING,"WARNING:  MissileController with LaunchpadName "..LaunchpadName.. " has no assigned launchpads!"); MissileControllerIsSetUpCorrect = false end
 
         -- iterating ai mainframes
         for index=0 ,I:Component_GetCount(26)-1 do -------------------------------------------------------------------------------------------------- not sure about indexing
             if I:Component_GetBlockInfo(26,index).CustomName == ControllingAiName then
-                GuidanceGroups[GuidanceGroupId].MainframeId = index
+                MissileControllers[MissileControllerId].MainframeId = index
             end
         end
-        if GuidanceGroups[GuidanceGroupId].MainframeId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no assigned ai mainframe!"); GuidanceGroupIsSetUpCorrect = false end
+        if MissileControllers[MissileControllerId].MainframeId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no assigned ai mainframe!"); MissileControllerIsSetUpCorrect = false end
 
         -- iterating MissileBehaviours
         for MissileBehaviourId, MissileBehaviour in pairs(MissileBehaviours) do
             -- checks if the MissileGuidance group can find a MissileBehaviour
             if MissileBehaviourName == MissileBehaviour[2] then
-                GuidanceGroups[GuidanceGroupId].MissileBehaviourId = MissileBehaviourId
+                MissileControllers[MissileControllerId].MissileBehaviourId = MissileBehaviourId
             end
         end
-        if GuidanceGroups[GuidanceGroupId].MissileBehaviourId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no configurated MissileBehaviour!"); GuidanceGroupIsSetUpCorrect = false end
+        if MissileControllers[MissileControllerId].MissileBehaviourId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no configurated MissileBehaviour!"); MissileControllerIsSetUpCorrect = false end
         
 
         -- iterating MissileGuidances
         for MissileGuidanceId, MissileGuidance in pairs(MissileGuidances) do
             -- checks if the MissileGuidance group can find a MissileBehaviour
             if PredictionName == MissileGuidance[2] then
-                GuidanceGroups[GuidanceGroupId].MissileGuidanceId = MissileGuidanceId
+                MissileControllers[MissileControllerId].MissileGuidanceId = MissileGuidanceId
             end
         end
-        if GuidanceGroups[GuidanceGroupId].MissileGuidanceId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no configurated MissileGuidance!"); GuidanceGroupIsSetUpCorrect = false end
+        if MissileControllers[MissileControllerId].MissileGuidanceId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no configurated MissileGuidance!"); MissileControllerIsSetUpCorrect = false end
         
 
         
 
-        GuidanceGroups[GuidanceGroupId].Valid = GuidanceGroupIsSetUpCorrect
+        MissileControllers[MissileControllerId].Valid = MissileControllerIsSetUpCorrect
     end
 
     if ErrorDetected == false then

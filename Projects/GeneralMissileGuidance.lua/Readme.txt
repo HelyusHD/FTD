@@ -5,10 +5,24 @@
 
 -- Each setting has already some examples so you can better understand how to set one up.
 
--- guidance groups --
+-- To give you an overiew on what you are looking at:
+-- There are 3 big settings.
+
+-- First there are missile controllers
+-- A missile controller connects the launch pads, the ai, the bahaviour and the guidance.
+-- This is everything a missile needs to be controlled.
+
+-- Then there are missile behaviours.
+-- A missile behaviour defines a method for a missiles to get to the enemy.
+
+-- Last there are prediction guidances
+-- A prediction guidance will predict the position of the enemie.
+-- This will allow you to hit fast and rapidly moving targets.
+
+-- missile controllers --
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
--- I have already created 2 different guidance groups.
+-- I have already created 2 different missile controllers.
 -- You can give luanchers one of the names from "LaunchpadName" 
 -- and they will be controlled by the Ai named like the "ControllingAiName" says
 -- and they will behave like "MissileBehaviourName" says
@@ -59,7 +73,7 @@
 -- 5. WhiggleRadius: additional rotation to irretate enemy counter measurements
 -- 6. T: time for one rotation of the whiggle motion
 
--- prediction guidance --
+-- prediction guidances --
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
