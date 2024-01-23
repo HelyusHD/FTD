@@ -36,11 +36,11 @@ DebugLevel = SYSTEM
 -- 1. LaunchpadName
 -- 2. ControllingAiName
 -- 3. MissileBehaviourName
--- 4. Prediction: possible otions: "Apn"
+-- 4. PredictionName: possible otions: "APN"
 
---                   LaunchpadName    ControllingAiName    MissileBehaviourName     Prediction
-GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01",                      },
-                    {"missiles 02",   "missile ai 01",     "Straight01",            "APN"   }
+--                   LaunchpadName    ControllingAiName    MissileBehaviourName     PredictionName
+GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01",              "Default01"},
+                    {"missiles 02",   "missile ai 01",     "Straight01",            "Apn01"}
                     }
 
 
@@ -54,30 +54,30 @@ GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01",          
 -- To do so, just match "FlightBehaviourName" and "MissileBehaviourName" and
 -- the GuiadanceGroup will know what MissileBehaviour to use
 
--- There are multiple BehaviourPattern to choose from. They each require different settings.
+-- There are multiple BehaviourType to choose from. They each require different settings.
 -- Here is a list of behaviours I implemented:
 
 -- 1.
--- BehaviourPatternName: "Diving"
--- This BehaviourPattern has 3 options:
--- 1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourPattern.
+-- BehaviourTypeName: "Diving"
+-- This BehaviourType has 3 options:
+-- 1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourType.
 -- 2. CruisingAltitude: The cruising altitude the missile will stay at, bevore diving on the enemy
 -- 3. DivingRadius: The distance to the enemy (no respect to altitude difference) below which we dive.
 
 -- 2.
--- BehaviourPatternName: "Bombing"
--- This BehaviourPattern has 3 options:
--- 1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourPattern.
+-- BehaviourTypeName: "Bombing"
+-- This BehaviourType has 3 options:
+-- 1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourType.
 -- 2. AimPointUpShift: We aim above the actual aimpoint, to drop the bomb on top of the enemie.
 -- 3. DivingRadius: Thats the distance below we stop aiming above the actual aimpoint and try to strike.
 
 --3.
--- BehaviourPatternName: "CustomCurve"
+-- BehaviourTypeName: "CustomCurve"
 -- not done yet
 
 --4.
--- BehaviourPatternName: "Orbit"
--- This BehaviourPattern has 6 options:
+-- BehaviourTypeName: "Orbit"
+-- This BehaviourType has 6 options:
 -- 1. Radius: the radius if the orbit
 -- 2. HightOffset: relative altitude to the target
 -- 3. MaxHight: highest allowed altitude
@@ -85,16 +85,16 @@ GuidanceGroups =  { {"missiles 01",   "missile ai 01",     "Diving01",          
 -- 5. WhiggleRadius: additional rotation to irretate enemy counter measurements
 -- 6. T: time for one rotation of the whiggle motion
 
---                  BehaviourPattern    FlightBehaviourName   CruisingAltitude   DivingRadius     (#unfinished)
+--                  BehaviourType    FlightBehaviourName   CruisingAltitude   DivingRadius     (#unfinished)
 MissileBehaviours = { {"Diving",       "Diving01",            200,               500         }, -- flies on CruisingAltitude till being within DivingRadius, when it strickes down on enemy
 
---                  BehaviourPattern    FlightBehaviourName   AimPointUpShift    DivingRadius
+--                  BehaviourType    FlightBehaviourName   AimPointUpShift    DivingRadius
                       {"Bombing",      "Bombing01",           30,                20          },
 
---                  BehaviourPattern    FlightBehaviourName     Radius      HightOffset     MaxHight    MinHight    WhiggleRadius   T
+--                  BehaviourType    FlightBehaviourName     Radius      HightOffset     MaxHight    MinHight    WhiggleRadius   T
                       {"Orbit",        "Orbit01",               200,        50,             600,        15,         5,              2},
 
---                  BehaviourPattern    FlightBehaviourName
+--                  BehaviourType    FlightBehaviourName
                       {"Straight",      "Straight01"}
                     }
 
@@ -104,7 +104,13 @@ MissileBehaviours = { {"Diving",       "Diving01",            200,              
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
--- not done yet but available
+MissileGuidances = {
+--                  GuidanceType    GuidanceName    LockingAngle    UnlockingAngle  PropConst
+                    {"APN",         "Apn01",        20,             60,             2.65},
+
+--                  GuidanceType    GuidanceName
+                    {"Default",     "Default01"}
+}
 
 
 
@@ -141,9 +147,10 @@ function GeneralGuidanceUpdate(I)
     for GuidanceGroupId, GuidanceGroupData in pairs(GuidanceGroups) do
         if GuidanceGroupData.Valid then
             local MissileBehaviour = MissileBehaviours[GuidanceGroupData.MissileBehaviourId]
+            local MissileGuidance = MissileGuidances[GuidanceGroupData.MissileGuidanceId]
             local TargetInfo = I:GetTargetInfo(GuidanceGroupData.MainframeId, 0)
             local AimPointPosition = TargetInfo.AimPointPosition
-            local BehaviourPattern = MissileBehaviour[1]
+            local BehaviourType = MissileBehaviour[1]
             local GameTime = I:GetGameTime()
 
             -- iterates launchpads
@@ -157,16 +164,18 @@ function GeneralGuidanceUpdate(I)
 
                     -- if the GuidanceGroup has a prediction routine enabled, the AimPointPosition will be adjusted
                     local AimPoint = AimPointPosition
-                    if GuidanceGroupData[4] == "APN" then
-                        AimPoint = ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex)
+                    if MissileGuidance ~= nil then
+                        if MissileGuidance[1] == "Default" then AimPoint = AimPoint
+                        elseif MissileGuidance[1] == "APN" then AimPoint = ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex,MissileGuidance)
+                        end
                     end
 
                     -- here the correct MissileControl function is selected
-                    if      BehaviourPattern == "Straight"      then MissileControlStraight(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
-                    elseif  BehaviourPattern == "Diving"        then MissileControlDiving(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
-                    elseif  BehaviourPattern == "CustomCurve"   then MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
-                    elseif  BehaviourPattern == "Bombing"       then MissileControlBomb(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
-                    elseif  BehaviourPattern == "Orbit"         then MissileControlOrbit(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
+                    if      BehaviourType == "Straight"      then MissileControlStraight(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
+                    elseif  BehaviourType == "Diving"        then MissileControlDiving(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
+                    elseif  BehaviourType == "CustomCurve"   then MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
+                    elseif  BehaviourType == "Bombing"       then MissileControlBomb(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
+                    elseif  BehaviourType == "Orbit"         then MissileControlOrbit(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint); matched = true
                     end
                     -- more behaviours to come #EDITHERE
 
@@ -205,6 +214,7 @@ function GeneralGuidanceInit(I)
         local LaunchpadName = GuidanceGroupData[1]
         local ControllingAiName = GuidanceGroupData[2]
         local MissileBehaviourName = GuidanceGroupData[3]
+        local PredictionName = GuidanceGroupData[4]
 
         local GuidanceGroupIsSetUpCorrect = true
 
@@ -237,6 +247,18 @@ function GeneralGuidanceInit(I)
         if GuidanceGroups[GuidanceGroupId].MissileBehaviourId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no configurated MissileBehaviour!"); GuidanceGroupIsSetUpCorrect = false end
         
 
+        -- iterating MissileGuidances
+        for MissileGuidanceId, MissileGuidance in pairs(MissileGuidances) do
+            -- checks if the MissileGuidance group can find a MissileBehaviour
+            if PredictionName == MissileGuidance[2] then
+                GuidanceGroups[GuidanceGroupId].MissileGuidanceId = MissileGuidanceId
+            end
+        end
+        if GuidanceGroups[GuidanceGroupId].MissileGuidanceId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName "..LaunchpadName.. " has no configurated MissileGuidance!"); GuidanceGroupIsSetUpCorrect = false end
+        
+
+        
+
         GuidanceGroups[GuidanceGroupId].Valid = GuidanceGroupIsSetUpCorrect
     end
 
@@ -259,7 +281,6 @@ end
 -- guides missiles along waypoints
 -- lti = luaTransceiverIndex | mi = missileIndex
 function MissileControlDiving(I,lti,mi,MissileBehaviour,AimPointPosition)
-
 
     local MissileInfo = I:GetLuaControlledMissileInfo(lti,mi)
     local CruisingAltitude = MissileBehaviour[3]
@@ -393,12 +414,16 @@ end
 
 
 
-function ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex)
+function ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex,MissileGuidance)
     local MissileInfo = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex)
     local TargetPosition = AimPointPosition
     local MissilePosition = MissileInfo.Position
     local TargetVelocity = TargetInfo.Velocity
     local MissileVelocity = MissileInfo.Velocity
+
+    local LockingAngle = MissileGuidance[3]
+    local UnlockingAngle = MissileGuidance[4]
+    local PropConst = MissileGuidance[5]
 
     local V = TargetVelocity - MissileVelocity
     local R = TargetPosition - MissilePosition
@@ -412,10 +437,10 @@ function ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIn
         }
     end
 
-    if not MissileData[MissileInfo.Id].ApnInfo.Locked and Vector3.Angle(R,MissileVelocity) < 10 then
+    if not MissileData[MissileInfo.Id].ApnInfo.Locked and Vector3.Angle(R,MissileVelocity) < LockingAngle then
         MissileData[MissileInfo.Id].ApnInfo.Locked = true
     end
-    if Vector3.Angle(R,MissileVelocity) > 90 then
+    if Vector3.Angle(R,MissileVelocity) > UnlockingAngle then
         MissileData[MissileInfo.Id].ApnInfo.Locked = false
     end
 
@@ -424,7 +449,7 @@ function ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIn
         MissileData[MissileInfo.Id].ApnInfo.AimPointLast = R
         return AimPointPosition
     else
-        local N = 2.65
+        local N = PropConst
         local LateralAcceleration = N * Vector3.Cross(V, Vector3.Cross(R, V)) / R.magnitude^2
         local w = Vector3.Cross(MissileVelocity, LateralAcceleration) / MissileVelocity.magnitude^2
         local dt = (I:GetGameTime()-MissileData[MissileInfo.Id].ApnInfo.TickTimeLast)
