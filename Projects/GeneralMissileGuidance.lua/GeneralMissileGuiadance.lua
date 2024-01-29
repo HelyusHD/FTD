@@ -139,6 +139,7 @@ function GeneralGuidanceInit(I)
     MyLog(I,SYSTEM,"Running GeneralGuidanceInit")
     GeneralGuidanceInitDone = false
     local ErrorDetected = false
+    local AtLeastOneSystemWorking = false
 
     -- a list containing a set of data for each missile
     MissileData = {}
@@ -195,9 +196,10 @@ function GeneralGuidanceInit(I)
         
 
         MissileControllers[MissileControllerId].Valid = MissileControllerIsSetUpCorrect
+        if MissileControllerIsSetUpCorrect then AtLeastOneSystemWorking = true end
     end
 
-    if ErrorDetected == false then
+    if ErrorDetected == false and AtLeastOneSystemWorking == true then
         GeneralGuidanceInitDone = true
     else
         MyLog(I,SYSTEM,"GeneralGuidanceInit failed")
