@@ -4,11 +4,8 @@
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
--- if you are still figuring out the settings, you can make the code check for changes
--- in the settings
--- set to 0 to disable
-InitAfterThisManyTicks = 0
-
+KeepSettingsUpdated = true
+function Settings()
 MissileControllers =  { 
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName
         {"missiles 01",   "missile ai 01",     "Diving01",              "Default01"},
@@ -42,6 +39,7 @@ MissileControllers =  {
     --  GuidanceType    GuidanceName
         {"Default",     "Default01"}
     }
+end
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
@@ -74,24 +72,12 @@ MissileControllers =  {
         if GeneralGuidanceInitDone ~= true then
             GeneralGuidanceInit(I)
         else
-            CheckForChangedSettings(I)
+            if KeepSettingsUpdated == true then Settings() end
             GeneralGuidanceUpdate(I)
         end
     end
 
 
-    function CheckForChangedSettings(I)
-        if InitAfterThisManyTicks ~= 0 then
-            if Ticks == nil then Ticks = 0 end
-            Ticks = Ticks + 1
-            if Ticks >= InitAfterThisManyTicks then
-                Ticks = 0
-                GeneralGuidanceInit(I)
-            end
-        end
-    end
-    
-    
     
     -- This is what controls the launchpads
     function GeneralGuidanceUpdate(I)
@@ -153,6 +139,7 @@ MissileControllers =  {
     -- finds Id of MissileBehaviour
     function GeneralGuidanceInit(I)
         I:ClearLogs()
+        Settings()
         MyLog(I,SYSTEM,"Running GeneralGuidanceInit")
         GeneralGuidanceInitDone = false
         local ErrorDetected = false
