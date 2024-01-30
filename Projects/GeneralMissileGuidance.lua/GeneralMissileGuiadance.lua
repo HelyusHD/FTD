@@ -4,6 +4,10 @@
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
+-- if you are still figuring out the settings, you can make the code check for changes
+-- in the settings
+-- set to 0 to disable
+InitAfterThisManyTicks = 0
 
 MissileControllers =  { 
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName
@@ -16,7 +20,7 @@ MissileControllers =  {
     -- Here is a list of behaviours I implemented:
     MissileBehaviours = {
     --  BehaviourType    FlightBehaviourName   CruisingAltitude   DivingRadius
-        {"Diving",       "Diving01",            200,               500         }, -- flies on CruisingAltitude till being within DivingRadius, when it strickes down on enemy
+        {"Diving",       "Diving01",            200,               500         },
     
     --  BehaviourType    FlightBehaviourName   AimPointUpShift    DivingRadius
         {"Bombing",      "Bombing01",           30,                20          },
@@ -70,7 +74,20 @@ MissileControllers =  {
         if GeneralGuidanceInitDone ~= true then
             GeneralGuidanceInit(I)
         else
+            CheckForChangedSettings(I)
             GeneralGuidanceUpdate(I)
+        end
+    end
+
+
+    function CheckForChangedSettings(I)
+        if InitAfterThisManyTicks ~= 0 then
+            if Ticks == nil then Ticks = 0 end
+            Ticks = Ticks + 1
+            if Ticks >= InitAfterThisManyTicks then
+                Ticks = 0
+                GeneralGuidanceInit(I)
+            end
         end
     end
     
