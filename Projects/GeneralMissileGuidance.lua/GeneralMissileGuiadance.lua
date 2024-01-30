@@ -249,7 +249,10 @@ MissileControllers =  {
     
         -- resets MissileData for a new missile
         if TimeSinceLaunch < 0.1 then
-            MissileData[MissileInfo.Id] = {}
+            MissileData[MissileInfo.Id] = {
+                Waypoint01 = false,
+                Waypoint02 = false
+            }
         else
             if Position.y > CruisingAltitude then
                 MissileData[MissileInfo.Id].Waypoint01 = true -- vertical launch done
@@ -263,7 +266,7 @@ MissileControllers =  {
                 aimPoint = Position + Vector3(0,10,0)
     
             elseif MissileData[MissileInfo.Id].Waypoint02 ~= true then
-                aimPoint = Vector3  (AimPointPosition.x,CruisingAltitude,AimPointPosition.z)
+                aimPoint = Vector3(AimPointPosition.x,CruisingAltitude,AimPointPosition.z)
             else
                 aimPoint = AimPointPosition
             end
