@@ -24,8 +24,8 @@ MissileControllers =  {
     --  BehaviourType    FlightBehaviourName     Radius      HightOffset     MaxHight    MinHight    WhiggleRadius   T
         {"Orbit",        "Orbit01",               200,        50,             600,        15,         5,              2},
     
-    --  BehaviourType    FlightBehaviourName
-        {"Straight",      "Straight01"}
+    --  BehaviourType    FlightBehaviourName    MaxHight    MinHight
+        {"Straight",      "Straight01",         800,        15}
     }
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
@@ -209,7 +209,11 @@ MissileControllers =  {
     
     
     function MissileControlStraight(I,lti,mi,MissileBehaviour,AimPointPosition)
+        local MaxHight = MissileBehaviour[3]
+        local MinHight = MissileBehaviour[4]
         local  aimPoint = AimPointPosition
+        if aimPoint.y > MaxHight then aimPoint.y = MaxHight end
+        if aimPoint.y < MinHight then aimPoint.y = MinHight end
         I:SetLuaControlledMissileAimPoint(lti,mi,aimPoint.x,aimPoint.y,aimPoint.z)
     end
     

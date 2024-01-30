@@ -73,6 +73,12 @@
 -- 5. WhiggleRadius: additional rotation to irretate enemy counter measurements
 -- 6. T: time for one rotation of the whiggle motion
 
+--5.
+-- BehaviourTypeName: "Straight"
+-- This BehaviourType has 2 options:
+-- 1. MaxHight: highest allowed altitude
+-- 2. MinHight: lowest allowed altitude
+
 -- prediction guidances --
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
