@@ -1,26 +1,27 @@
+-- MAKE SURE TO READ THE "Readme" FILE ON MY GITHUB!!!
 function Settings()
---------------
--- Settings --
---------------
------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------
-BreadboardInstalled = false
-    -- Here is a list of controllers I implemented:
-MissileControllers =  { 
+
+    --------------
+    -- Settings --
+    --------------
+
+    BreadboardInstalled = false
+    -----------------------------------------------------------------------------------------
+    MissileControllers =  { 
+
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName    Size
         {"missiles 02",   "AIM missile",       "Diving01",              "Pg01",         "medium"}
     }
+
+
     -----------------------------------------------------------------------------------------
-    -----------------------------------------------------------------------------------------
-    -----------------------------------------------------------------------------------------
-    -- Here is a list of behaviours I implemented:
-MissileBehaviours = {
+    MissileBehaviours = {
+
     --  BehaviourType    FlightBehaviourName   CruisingAltitude   DivingRadius  PredictionTime
-        {"Diving",       "Diving01",            300,               100,         2},
+        {"Diving",       "Diving01",           300,               100,          2},
     
     --  BehaviourType    FlightBehaviourName   AimPointUpShift    DivingRadius
-        {"Bombing",      "Bombing01",           30,                20          },
+        {"Bombing",      "Bombing01",          30,                20},
     
     --  BehaviourType    FlightBehaviourName   Radius      HightOffset     MaxHight    MinHight    WhiggleRadius   T
         {"Orbit",        "Orbit01",            200,        50,             600,        15,         5,              2},
@@ -28,11 +29,10 @@ MissileBehaviours = {
     --  BehaviourType    FlightBehaviourName   MaxHight    MinHight
         {"Straight",      "Straight01",        800,        15}
     }
+
     -----------------------------------------------------------------------------------------
-    -----------------------------------------------------------------------------------------
-    -----------------------------------------------------------------------------------------
-    -- Here is a list of guidances I implemented:
-MissileGuidances = {
+    MissileGuidances = {
+
     --  GuidanceType    GuidanceName    LockingAngle    UnlockingAngle  PropConst
         {"APN",         "Apn01",        20,             60,             2.65},
 
@@ -43,19 +43,18 @@ MissileGuidances = {
         {"Default",     "Default01"}
     }
 end
-    -----------------------------------------------------------------------------------------
-    -----------------------------------------------------------------------------------------
+
     -----------------------------------------------------------------------------------------
     -- Here you can decide after how many seconds new settings are checked and applied
     -- Set to -1 to disable, once you have decided on your final settings
-UpdateSettingsInterval = 2
-    -----------------------------------------------------------------------------------------
+    UpdateSettingsInterval = 2
+
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
     -- here comes my code --
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
-    -----------------------------------------------------------------------------------------
+
     ---Enumerations for Logging purposes
     ERROR = 0
     WARNING = 1
