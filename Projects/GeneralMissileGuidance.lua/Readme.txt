@@ -34,6 +34,7 @@
 -- 2. ControllingAiName
 -- 3. MissileBehaviourName
 -- 4. PredictionName: possible otions: "APN"
+-- 5. Size: The size of the missiles (small, medium, large, huge)
 
 -- missile behaviours --
 -----------------------------------------------------------------------------------------
