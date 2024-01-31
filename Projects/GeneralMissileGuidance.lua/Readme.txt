@@ -2,6 +2,7 @@
 -- 1. guidance groups
 -- 2. missile behaviours
 -- 3. prediction guidance
+-- 4. check for new settings
 
 -- Each setting has already some examples so you can better understand how to set one up.
 
@@ -33,6 +34,7 @@
 -- 2. ControllingAiName
 -- 3. MissileBehaviourName
 -- 4. PredictionName: possible otions: "APN"
+-- 5. Size: The size of the missiles (small, medium, large, huge)
 
 -- missile behaviours --
 -----------------------------------------------------------------------------------------
@@ -47,10 +49,13 @@
 
 -- 1.
 -- BehaviourTypeName: "Diving"
--- This BehaviourType has 3 options:
+-- This BehaviourType has 4 options:
 -- 1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourType.
 -- 2. CruisingAltitude: The cruising altitude the missile will stay at, bevore diving on the enemy
 -- 3. DivingRadius: The distance to the enemy (no respect to altitude difference) below which we dive.
+-- 4. PredictionTime: We behave depending on where we will be in this many seconds. Does not help hitting the target.
+--                    This will help sticking to the CruisingAltitude and DivingRadius.
+                      0 - 3 works for most missiles.
 
 -- 2.
 -- BehaviourTypeName: "Bombing"
@@ -72,6 +77,12 @@
 -- 4. MinHight: lowest allowed altitude
 -- 5. WhiggleRadius: additional rotation to irretate enemy counter measurements
 -- 6. T: time for one rotation of the whiggle motion
+
+--5.
+-- BehaviourTypeName: "Straight"
+-- This BehaviourType has 2 options:
+-- 1. MaxHight: highest allowed altitude
+-- 2. MinHight: lowest allowed altitude
 
 -- prediction guidances --
 -----------------------------------------------------------------------------------------
@@ -96,3 +107,11 @@
 -- 2. UnlockingAngle: above this bearing angle, the APN disables
 -- 3. PropConst: how aggressive the missile turns.
 --    2.65 is a great value for most missiles.
+
+-- check for new settings --
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+-- Last but not least you can decide on how fast you want the code to check for new Settings
+-- There is one option:
+-- 1. UpdateSettingsInterval: How many seconds need to pass 
