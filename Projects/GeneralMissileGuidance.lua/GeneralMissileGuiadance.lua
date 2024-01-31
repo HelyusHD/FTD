@@ -8,7 +8,7 @@ function Settings()
     -- Here is a list of controllers I implemented:
 MissileControllers =  { 
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName
-        {"missiles 02",   "AIM missile",     "Diving01",              "Default01"},
+        {"missiles 02",   "AIM missile",     "Diving01",              "PG01"},
         {"missiles 01",   "AIM missile",     "Straight01",            "Apn01"}
     }
     -----------------------------------------------------------------------------------------
@@ -17,7 +17,7 @@ MissileControllers =  {
     -- Here is a list of behaviours I implemented:
 MissileBehaviours = {
     --  BehaviourType    FlightBehaviourName   CruisingAltitude   DivingRadius  PredictionTime
-        {"Diving",       "Diving01",            200,               500,         2},
+        {"Diving",       "Diving01",            300,               100,         2},
     
     --  BehaviourType    FlightBehaviourName   AimPointUpShift    DivingRadius
         {"Bombing",      "Bombing01",           30,                20          },
@@ -35,6 +35,9 @@ MissileBehaviours = {
 MissileGuidances = {
     --  GuidanceType    GuidanceName    LockingAngle    UnlockingAngle  PropConst
         {"APN",         "Apn01",        20,             60,             2.65},
+
+    --  GuidanceType    GuidanceName
+        {"PG",          "PG01"},
     
     --  GuidanceType    GuidanceName
         {"Default",     "Default01"}
@@ -278,7 +281,8 @@ UpdateSettingsInterval = 2
             elseif MissileData[MissileInfo.Id].Waypoint02 ~= true then
                 aimPoint = Vector3(AimPointPosition.x,CruisingAltitude,AimPointPosition.z)
             else
-                aimPoint = AimPointPosition
+                local AimPointCorrection = ((AimPointPosition - MissileInfo.Position).normalized - MissileInfo.Velocity.normalized) * 500
+                aimPoint = AimPointPosition + AimPointCorrection
             end
             I:SetLuaControlledMissileAimPoint(lti,mi,aimPoint.x,aimPoint.y,aimPoint.z)
         end
@@ -448,14 +452,17 @@ UpdateSettingsInterval = 2
         MissileData[MissileInfo.Id].TargetVelocityLast = TargetVelocity
 
         local R = TargetPosition - MissilePosition
-        local ApproachingSpeed = MissileVelocity * R.normalized
-        local InterceptionTime = R / ApproachingSpeed
+        local ApproachingSpeed = Vector3.Dot(MissileVelocity, R.normalized)
+        local InterceptionTime = R.magnitude / ApproachingSpeed
 
+        local PredictedTargetPosition = TargetPosition + TargetVelocity * InterceptionTime + TargetAcceleration * InterceptionTime^2 / 2
         local Iteration = 1
-        while (PredictedTargetPosition - TargetPosition) / ApproachingSpeed - InterceptionTime > 0.01 and Iteration <= 10 do
+        while (PredictedTargetPosition - TargetPosition).magnitude / ApproachingSpeed - InterceptionTime > 0.01 and Iteration <= 10 do
             Iteration = Iteration + 1
-            PredictedTargetPosition = TargetPosition + MissileVelocity * InterceptionTime + TargetAcceleration * InterceptionTime^2 / 2
-            InterceptionTime = (PredictedTargetPosition - TargetPosition) / ApproachingSpeed
+            PredictedTargetPosition = TargetPosition + TargetVelocity * InterceptionTime + TargetAcceleration * InterceptionTime^2 / 2
+            InterceptionTime = (PredictedTargetPosition - TargetPosition).magnitude / ApproachingSpeed
+            R = PredictedTargetPosition - MissilePosition
+            ApproachingSpeed = Vector3.Dot(MissileVelocity, R.normalized)
         end
 
         return PredictedTargetPosition
