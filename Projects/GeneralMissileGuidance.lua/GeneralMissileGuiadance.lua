@@ -440,6 +440,14 @@ UpdateSettingsInterval = 2
         local MissilePosition = MissileInfo.Position
         local TargetVelocity = TargetInfo.Velocity
         local MissileVelocity = MissileInfo.Velocity
+
+        local R = TargetPosition - MissilePosition
+        local InterceptionTime = 0
+
+        local PredictedTargetPosition = TargetPosition + MissileVelocity * InterceptionTime
+        local InterceptionTime = (PredictedTargetPosition - TargetPosition) / (MissileVelocity * R.normalized)
+
+        return PredictedTargetPosition
     end
 
 
