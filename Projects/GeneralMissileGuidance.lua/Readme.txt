@@ -47,10 +47,13 @@
 
 -- 1.
 -- BehaviourTypeName: "Diving"
--- This BehaviourType has 3 options:
+-- This BehaviourType has 4 options:
 -- 1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourType.
 -- 2. CruisingAltitude: The cruising altitude the missile will stay at, bevore diving on the enemy
 -- 3. DivingRadius: The distance to the enemy (no respect to altitude difference) below which we dive.
+-- 4. PredictionTime: We behave depending on where we will be in this many seconds. Does not help hitting the target.
+--                    This will help sticking to the CruisingAltitude and DivingRadius.
+                      0 - 3 works for most missiles.
 
 -- 2.
 -- BehaviourTypeName: "Bombing"
