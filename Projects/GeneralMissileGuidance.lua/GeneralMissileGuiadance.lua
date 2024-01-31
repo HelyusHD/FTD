@@ -5,6 +5,7 @@ function Settings()
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
+BreadboardInstalled = false
     -- Here is a list of controllers I implemented:
 MissileControllers =  { 
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName    Size
@@ -115,10 +116,16 @@ UpdateSettingsInterval = 2
                 correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength + 1)
             end
             MissileData[Id].LuaGuidanceError.StabilityErrorDir = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - (MissileInfo.Position + correction)).normalized
-            MissileData[Id].LuaGuidanceError.MissileError = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - MissileInfo.Position + correction) + (10*(1-I:GetPropulsionRequest(13)))* MissileData[Id].LuaGuidanceError.StabilityErrorDir
+            local StabilityModyfier
+            if BreadboardInstalled then 
+                StabilityModyfier = 10 * (1-I:GetPropulsionRequest(13))
+            else
+                StabilityModyfier = 0
+            end
+            MissileData[Id].LuaGuidanceError.MissileError = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - MissileInfo.Position + correction) + StabilityModyfier * MissileData[Id].LuaGuidanceError.StabilityErrorDir
             MissileData[Id].LuaGuidanceError.ECMError = Vector3(0,0,0)
         end
-        local StabilityMiss = (10 * (1-I:GetPropulsionRequest(13))) * MissileData[Id].LuaGuidanceError.StabilityErrorDir
+        local StabilityMiss = StabilityModyfier * MissileData[Id].LuaGuidanceError.StabilityErrorDir
         if MissileData[Id].LuaGuidanceError.MissileLastPos == nil then MissileData[Id].LuaGuidanceError.MissileLastPos = MissileInfo.Position + (MissileData[Id].LuaGuidanceError.MissileError - StabilityMiss) end
         if MissileData[Id].LuaGuidanceError.SelfLastVel == nil then MissileData[Id].LuaGuidanceError.SelfLastVel = MissileInfo.Velocity end
         local Discrepancy = (MissileInfo.Position + (MissileData[Id].LuaGuidanceError.MissileError - StabilityMiss)) - (MissileData[Id].LuaGuidanceError.MissileLastPos + MissileData[Id].LuaGuidanceError.SelfLastVel / 40)

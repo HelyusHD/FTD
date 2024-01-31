@@ -1,9 +1,10 @@
 -- chapters --
 -- 0. general information
--- 1. guidance groups
--- 2. missile behaviours
--- 3. prediction guidance
--- 4. check for new settings
+-- 1. installing breadboard
+-- 2. guidance groups
+-- 3. missile behaviours
+-- 4. prediction guidance
+-- 5. check for new settings
 
 -- general information --
 -----------------------------------------------------------------------------------------
@@ -19,8 +20,12 @@
 -- Make sure, your asi has enough processing power.
 -- Make sure, your craft has detection on the enemy.
 
--- Each setting has already some examples so you can better understand how to set one up.
+-- I strongly advice you to send the stability of the craft divided by 100 over the Misc Axis named "E".
+-- Once you installed such a breadboard, you can set "BreadboardInstalled" (at the top of the code) to true.
+-- Its set to false by default!
+-- There is an image on my GitHub named BreadBoard.png showing such a setup.
 
+-- Each setting has already some examples so you can better understand how to set one up.
 -- To give you an overiew on what you are looking at:
 -- There are 3 big tables with settings in them.
 
