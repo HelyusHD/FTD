@@ -1,4 +1,5 @@
 -- MAKE SURE TO READ THE "Readme" FILE ON MY GITHUB!!!
+-- link: https://github.com/HelyusHD/FTD/tree/main/Projects/GeneralMissileGuidance.lua
 function Settings()
 
     --------------
@@ -18,13 +19,13 @@ function Settings()
     MissileBehaviours = {
 
     --  BehaviourType    FlightBehaviourName   CruisingAltitude   DivingRadius  PredictionTime
-        {"Diving",       "Diving01",           300,               100,          2},
+        {"Diving",       "Diving01",           300,               200,          1},
     
     --  BehaviourType    FlightBehaviourName   AimPointUpShift    DivingRadius
         {"Bombing",      "Bombing01",          30,                20},
     
     --  BehaviourType    FlightBehaviourName   Radius      HightOffset     MaxHight    MinHight    WhiggleRadius   T
-        {"Orbit",        "Orbit01",            200,        50,             600,        15,         5,              2},
+        {"Orbit",        "Orbit01",            400,        50,             600,        30,         5,              2},
     
     --  BehaviourType    FlightBehaviourName   MaxHight    MinHight
         {"Straight",      "Straight01",        800,        15}
@@ -100,6 +101,7 @@ end
         local Parts = I:GetMissileInfo(luaTransceiverIndex,missileIndex).Parts
         local MissileInfo = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex)
         local  Id = MissileInfo.Id
+        local StabilityModyfier
         missilelength = #Parts
         if MissileData[Id].LuaGuidanceError == nil then
             MissileData[Id].LuaGuidanceError = {}
@@ -114,15 +116,19 @@ end
             else -- huge
                 correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength + 1)
             end
-            MissileData[Id].LuaGuidanceError.StabilityErrorDir = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - (MissileInfo.Position + correction)).normalized
-            local StabilityModyfier
-            if BreadboardInstalled then 
+            if BreadboardInstalled == true then 
                 StabilityModyfier = 10 * (1-I:GetPropulsionRequest(13))
             else
                 StabilityModyfier = 0
             end
+            MissileData[Id].LuaGuidanceError.StabilityErrorDir = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - (MissileInfo.Position + correction)).normalized
             MissileData[Id].LuaGuidanceError.MissileError = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - MissileInfo.Position + correction) + StabilityModyfier * MissileData[Id].LuaGuidanceError.StabilityErrorDir
             MissileData[Id].LuaGuidanceError.ECMError = Vector3(0,0,0)
+        end
+        if BreadboardInstalled == true then 
+            StabilityModyfier = 10 * (1-I:GetPropulsionRequest(13))
+        else
+            StabilityModyfier = 0
         end
         local StabilityMiss = StabilityModyfier * MissileData[Id].LuaGuidanceError.StabilityErrorDir
         if MissileData[Id].LuaGuidanceError.MissileLastPos == nil then MissileData[Id].LuaGuidanceError.MissileLastPos = MissileInfo.Position + (MissileData[Id].LuaGuidanceError.MissileError - StabilityMiss) end
