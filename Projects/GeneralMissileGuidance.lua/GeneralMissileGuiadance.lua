@@ -96,6 +96,41 @@ UpdateSettingsInterval = 2
     end
 
 
+
+    function CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex)
+        local Parts = I:GetMissileInfo(luaTransceiverIndex,missileIndex).Parts
+        local MissileInfo = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex)
+        local  Id = MissileInfo.Id
+        missilelength = #Parts
+        if MissileData[Id].LuaGuidanceError == nil then
+            MissileData[Id].LuaGuidanceError = {}
+            local MissileSize = 2
+            local correction
+            if MissileSize == 1 then -- mall
+                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.125)
+            elseif MissileSize == 2 then -- medium
+                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.25 + 1)
+            elseif MissileSize == 3 then -- large
+                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.5 + 1)
+            else -- huge
+                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength + 1)
+            end
+            MissileData[Id].LuaGuidanceError.StabilityErrorDir = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - (MissileInfo.Position + correction)).normalized
+            MissileData[Id].LuaGuidanceError.MissileError = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - MissileInfo.Position + correction) + (10*(1-I:GetPropulsionRequest(13)))* MissileData[Id].LuaGuidanceError.StabilityErrorDir
+            MissileData[Id].LuaGuidanceError.ECMError = Vector3(0,0,0)
+        end
+        local StabilityMiss = (10 * (1-I:GetPropulsionRequest(13))) * MissileData[Id].LuaGuidanceError.StabilityErrorDir
+        if MissileData[Id].LuaGuidanceError.MissileLastPos == nil then MissileData[Id].LuaGuidanceError.MissileLastPos = MissileInfo.Position + (MissileData[Id].LuaGuidanceError.MissileError - StabilityMiss) end
+        if MissileData[Id].LuaGuidanceError.SelfLastVel == nil then MissileData[Id].LuaGuidanceError.SelfLastVel = MissileInfo.Velocity end
+        local Discrepancy = (MissileInfo.Position + (MissileData[Id].LuaGuidanceError.MissileError - StabilityMiss)) - (MissileData[Id].LuaGuidanceError.MissileLastPos + MissileData[Id].LuaGuidanceError.SelfLastVel / 40)
+        MissileData[Id].LuaGuidanceError.SelfLastVel = MissileInfo.Velocity
+        MissileData[Id].LuaGuidanceError.MissileLastPos = MissileInfo.Position+(MissileData[Id].LuaGuidanceError.MissileError - StabilityMiss)
+        if (Discrepancy.magnitude > 5 and Discrepancy.magnitude < 200) or MissileData[Id].LuaGuidanceError.ECMError.magnitude > 5 then
+            MissileData[Id].LuaGuidanceError.ECMError = MissileData[Id].LuaGuidanceError.ECMError + Discrepancy
+        end
+    end
+
+
     
     -- This is what controls the launchpads
     function GeneralMissileGuidanceUpdate(I)
@@ -117,9 +152,12 @@ UpdateSettingsInterval = 2
                         local Id = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex).Id
                         if MissileData[Id] == nil then MissileData[Id] = {} end
                         MissileData[Id].Alive = true
+
+                        CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex)
+                        local AimPoint = AimPointPosition + MissileData[Id].LuaGuidanceError.ECMError
     
                         -- if the MissileController has a prediction routine enabled, the AimPointPosition will be adjusted
-                        local AimPoint = AimPointPosition
+                        --local AimPoint = AimPointPosition
                         if MissileGuidance ~= nil then
                             if MissileGuidance[1] == "Default" then AimPoint = AimPoint
                             elseif MissileGuidance[1] == "APN" then AimPoint = ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex,MissileGuidance)
@@ -283,7 +321,7 @@ UpdateSettingsInterval = 2
             else
                 local R = AimPointPosition - MissileInfo.Position
                 if Vector3.Angle(R,MissileInfo.Velocity) < 10 then
-                    local AimPointCorrection = (R.normalized - MissileInfo.Velocity.normalized) * 100
+                    local AimPointCorrection = (R.normalized - MissileInfo.Velocity.normalized) * 500
                     aimPoint = AimPointPosition + AimPointCorrection
                 else
                     aimPoint = AimPointPosition
