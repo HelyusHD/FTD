@@ -282,9 +282,12 @@ UpdateSettingsInterval = 2
                 aimPoint = Vector3(AimPointPosition.x,CruisingAltitude,AimPointPosition.z)
             else
                 local R = AimPointPosition - MissileInfo.Position
-                if Vector3.Angle(R,MissileInfo.Velocity) < 20
-                local AimPointCorrection = (R.normalized - MissileInfo.Velocity.normalized) * 500
-                aimPoint = AimPointPosition + AimPointCorrection
+                if Vector3.Angle(R,MissileInfo.Velocity) < 20 then
+                    local AimPointCorrection = (R.normalized - MissileInfo.Velocity.normalized) * 500
+                    aimPoint = AimPointPosition + AimPointCorrection
+                else
+                    aimPoint = AimPointPosition
+                end
             end
             I:SetLuaControlledMissileAimPoint(lti,mi,aimPoint.x,aimPoint.y,aimPoint.z)
         end
