@@ -9,6 +9,9 @@
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
+-- Copy the GeneralMissileGuiadance.lua file into a lua box and apply the changes.
+-- When you change anything inside the lua box, make sure to apply the changes.
+
 -- This code allowes you to design your own fun missile behaviours.
 -- This code will only guide and not fire missiles.
 -- Make sure each missile launch pad has a lua transreciver block connected to it.
