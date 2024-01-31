@@ -256,7 +256,7 @@ UpdateSettingsInterval = 2
                 elseif  BehaviourType == "Orbit"         then MissileControllers[MissileControllerId].Guidance = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlOrbit(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end; matched = true
                 -- more behaviours to come #EDITHERE
                 end
-                if not matched then MyLog(I,WARNING,"[✗]:The MissileBehaviour has no working BehaviourType!"); MissileControllerIsSetUpCorrect = false end
+                if not matched then MyLog(I,WARNING,"[✗]: The MissileBehaviour \""..MissileBehaviourName.."\" has no working BehaviourType!"); MissileControllerIsSetUpCorrect = false end
             end
     
             MissileControllers[MissileControllerId].Valid = MissileControllerIsSetUpCorrect

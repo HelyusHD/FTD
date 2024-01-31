@@ -1,13 +1,25 @@
 -- chapters --
+-- 0. general information
 -- 1. guidance groups
 -- 2. missile behaviours
 -- 3. prediction guidance
 -- 4. check for new settings
 
+-- general information --
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+-- This code allowes you to design your own fun missile behaviours.
+-- This code will only guide and not fire missiles.
+-- Make sure each missile launch pad has a lua transreciver block connected to it.
+-- Make sure each missile has a lua reciver component.
+-- Make sure, your asi has enough processing power.
+-- Make sure, your craft has detection on the enemy.
+
 -- Each setting has already some examples so you can better understand how to set one up.
 
 -- To give you an overiew on what you are looking at:
--- There are 3 big settings.
+-- There are 3 big tables with settings in them.
 
 -- First there are missile controllers
 -- A missile controller connects the launch pads, the ai, the bahaviour and the guidance.
@@ -16,7 +28,7 @@
 -- Then there are missile behaviours.
 -- A missile behaviour defines a method for a missiles to get to the enemy.
 
--- Last there are prediction guidances
+-- Last there are prediction guidances.
 -- A prediction guidance will predict the position of the enemie.
 -- This will allow you to hit fast and rapidly moving targets.
 
