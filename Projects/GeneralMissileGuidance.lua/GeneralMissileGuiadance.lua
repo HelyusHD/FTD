@@ -22,11 +22,11 @@ MissileControllers =  {
     --  BehaviourType    FlightBehaviourName   AimPointUpShift    DivingRadius
         {"Bombing",      "Bombing01",           30,                20          },
     
-    --  BehaviourType    FlightBehaviourName     Radius      HightOffset     MaxHight    MinHight    WhiggleRadius   T
-        {"Orbit",        "Orbit01",               200,        50,             600,        15,         5,              2},
+    --  BehaviourType    FlightBehaviourName   Radius      HightOffset     MaxHight    MinHight    WhiggleRadius   T
+        {"Orbit",        "Orbit01",            200,        50,             600,        15,         5,              2},
     
-    --  BehaviourType    FlightBehaviourName    MaxHight    MinHight
-        {"Straight",      "Straight01",         800,        15}
+    --  BehaviourType    FlightBehaviourName   MaxHight    MinHight
+        {"Straight",      "Straight01",        800,        15}
     }
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
