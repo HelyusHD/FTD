@@ -57,8 +57,9 @@ UpdateSettingsInterval = 2
     ERROR = 0
     WARNING = 1
     SYSTEM = 2
-    LISTS = 3
-    VECTORS = 4
+    UPDATE = 3
+    LISTS = 4
+    VECTORS = 5
     DebugLevel = SYSTEM
     -- I marked lines where I need to add more code. with "#EDITHERE"
     -----------------------------------------------------------------------------------------
@@ -119,6 +120,7 @@ UpdateSettingsInterval = 2
                         if MissileGuidance ~= nil then
                             if MissileGuidance[1] == "Default" then AimPoint = AimPoint
                             elseif MissileGuidance[1] == "APN" then AimPoint = ApnGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex,MissileGuidance)
+                            elseif MissileGuidance[1] == "PG" then AimPoint = PredictionGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex,MissileGuidance)
                             end
                         end
     
@@ -154,8 +156,7 @@ UpdateSettingsInterval = 2
     function GeneralMissileGuidanceInit(I)
         ClearMyLogs(I)
         Settings()
-        MyLog(I,SYSTEM,"________________________________________________________________________________________________________________________________________________________________")
-        MyLog(I,SYSTEM,"SYSTEM:   Initializing code at GameTime: "..I:GetGameTime())
+        MyLog(I,UPDATE,"UPDATE:   Initializing code at GameTime: "..I:GetGameTime())
         GeneralMissileGuidanceInitDone = false
         local ErrorDetected = false
         local AtLeastOneSystemWorking = false
@@ -170,6 +171,7 @@ UpdateSettingsInterval = 2
             local ControllingAiName = MissileControllerData[2]
             local MissileBehaviourName = MissileControllerData[3]
             local PredictionName = MissileControllerData[4]
+            MyLog(I,SYSTEM,"—————————### LAUNCHPAD NAME: "..LaunchpadName.." ###—————————")
     
             local MissileControllerIsSetUpCorrect = true
     
@@ -182,7 +184,7 @@ UpdateSettingsInterval = 2
                 end
             end
             MissileControllers[MissileControllerId].luaTransceiverIndexes = LaunchpadIds
-            if #LaunchpadIds == 0 then MyLog(I,WARNING,"WARNING:  MissileController with LaunchpadName \""..LaunchpadName.. "\" has no assigned launchpads!"); MissileControllerIsSetUpCorrect = false end
+            if #LaunchpadIds == 0 then MyLog(I,WARNING,"[✗]: MissileController has no assigned launchpads!"); MissileControllerIsSetUpCorrect = false end
     
             -- iterating ai mainframes
             for index=0 ,I:Component_GetCount(26)-1 do -------------------------------------------------------------------------------------------------- not sure about indexing
@@ -190,7 +192,7 @@ UpdateSettingsInterval = 2
                     MissileControllers[MissileControllerId].MainframeId = index
                 end
             end
-            if MissileControllers[MissileControllerId].MainframeId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName \""..LaunchpadName.. "\" has no assigned ai mainframe!"); MissileControllerIsSetUpCorrect = false end
+            if MissileControllers[MissileControllerId].MainframeId == nil then MyLog(I,WARNING,"[✗]: GuiadanceGroup has no assigned ai mainframe!"); MissileControllerIsSetUpCorrect = false end
     
             -- iterating MissileBehaviours
             for MissileBehaviourId, MissileBehaviour in pairs(MissileBehaviours) do
@@ -199,7 +201,7 @@ UpdateSettingsInterval = 2
                     MissileControllers[MissileControllerId].MissileBehaviourId = MissileBehaviourId
                 end
             end
-            if MissileControllers[MissileControllerId].MissileBehaviourId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName \""..LaunchpadName.. "\" has no configurated MissileBehaviour!"); MissileControllerIsSetUpCorrect = false end
+            if MissileControllers[MissileControllerId].MissileBehaviourId == nil then MyLog(I,WARNING,"[✗]: GuiadanceGroup has no configurated MissileBehaviour!"); MissileControllerIsSetUpCorrect = false end
             
     
             -- iterating MissileGuidances
@@ -209,7 +211,7 @@ UpdateSettingsInterval = 2
                     MissileControllers[MissileControllerId].MissileGuidanceId = MissileGuidanceId
                 end
             end
-            if MissileControllers[MissileControllerId].MissileGuidanceId == nil then MyLog(I,WARNING,"WARNING:  GuiadanceGroup with LaunchpadName \""..LaunchpadName.. "\" has no configurated MissileGuidance!"); MissileControllerIsSetUpCorrect = false end
+            if MissileControllers[MissileControllerId].MissileGuidanceId == nil then MyLog(I,WARNING,"[✗]: GuiadanceGroup has no configurated MissileGuidance!"); MissileControllerIsSetUpCorrect = false end
             
     
             
@@ -217,14 +219,14 @@ UpdateSettingsInterval = 2
             MissileControllers[MissileControllerId].Valid = MissileControllerIsSetUpCorrect
             if MissileControllerIsSetUpCorrect then
                 AtLeastOneSystemWorking = true
-                MyLog(I,SYSTEM,"SYSTEM:   Loaded "..#LaunchpadIds.." launchpads named \""..LaunchpadName.."\"")
+                MyLog(I,SYSTEM,"[✓]: Loaded "..#LaunchpadIds.." launchpads using:\n        - behaviour: "..MissileBehaviourName.."\n        - prediction: "..PredictionName)
             end
         end
     
         if ErrorDetected == false and AtLeastOneSystemWorking == true then
             GeneralMissileGuidanceInitDone = true
         else
-            MyLog(I,SYSTEM,"SYSTEM:   GeneralMissileGuidanceInit failed")
+            MyLog(I,SYSTEM,"[✗] ---Not a single system could be loaded !!!---")
         end
     end
     
@@ -441,11 +443,20 @@ UpdateSettingsInterval = 2
         local TargetVelocity = TargetInfo.Velocity
         local MissileVelocity = MissileInfo.Velocity
 
-        local R = TargetPosition - MissilePosition
-        local InterceptionTime = 0
+        if MissileData[MissileInfo.Id].TargetVelocityLast == nil then MissileData[MissileInfo.Id].TargetVelocityLast = TargetVelocity end
+        local TargetAcceleration = (MissileData[MissileInfo.Id].TargetVelocityLast - TargetVelocity) * 40
+        MissileData[MissileInfo.Id].TargetVelocityLast = TargetVelocity
 
-        local PredictedTargetPosition = TargetPosition + MissileVelocity * InterceptionTime
-        local InterceptionTime = (PredictedTargetPosition - TargetPosition) / (MissileVelocity * R.normalized)
+        local R = TargetPosition - MissilePosition
+        local ApproachingSpeed = MissileVelocity * R.normalized
+        local InterceptionTime = R / ApproachingSpeed
+
+        local Iteration = 1
+        while (PredictedTargetPosition - TargetPosition) / ApproachingSpeed - InterceptionTime > 0.01 and Iteration <= 10 do
+            Iteration = Iteration + 1
+            PredictedTargetPosition = TargetPosition + MissileVelocity * InterceptionTime + TargetAcceleration * InterceptionTime^2 / 2
+            InterceptionTime = (PredictedTargetPosition - TargetPosition) / ApproachingSpeed
+        end
 
         return PredictedTargetPosition
     end

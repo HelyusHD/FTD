@@ -2,6 +2,7 @@
 -- 1. guidance groups
 -- 2. missile behaviours
 -- 3. prediction guidance
+-- 4. check for new settings
 
 -- Each setting has already some examples so you can better understand how to set one up.
 
@@ -105,3 +106,11 @@
 -- 2. UnlockingAngle: above this bearing angle, the APN disables
 -- 3. PropConst: how aggressive the missile turns.
 --    2.65 is a great value for most missiles.
+
+-- check for new settings --
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
+
+-- Last but not least you can decide on how fast you want the code to check for new Settings
+-- There is one option:
+-- 1. UpdateSettingsInterval: How many seconds need to pass 
