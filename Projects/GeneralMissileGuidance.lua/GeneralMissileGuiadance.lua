@@ -11,8 +11,7 @@ function Settings()
     MissileControllers =  { 
 
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName    Size
-        {"missiles 02",   "AIM missile",       "Diving01",              "Pg01",        "medium"}
-,
+        {"missiles 02",   "AIM missile",       "Diving01",              "Pg01",        "medium"},
         {"missiles 01",   "AIM missile",       "Straight01",            "Apn01",       "small"}
     }
 
