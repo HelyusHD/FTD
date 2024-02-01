@@ -334,8 +334,8 @@ end
                 aimPoint = Vector3(AimPointPosition.x,CruisingAltitude,AimPointPosition.z)
             else
                 local R = AimPointPosition - MissileInfo.Position
-                if Vector3.Angle(R,MissileInfo.Velocity) < 10 then
-                    local AimPointCorrection = (R.normalized - MissileInfo.Velocity.normalized) * 500
+                if Vector3.Angle(R,MissileInfo.Velocity) < 50 then
+                    local AimPointCorrection = (R.normalized - MissileInfo.Velocity.normalized) * math.abs(MissileInfo.Position.y - AimPointPosition.y)
                     aimPoint = AimPointPosition + AimPointCorrection
                 else
                     aimPoint = AimPointPosition
