@@ -11,7 +11,9 @@ function Settings()
     MissileControllers =  { 
 
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName    Size
-        {"missiles 02",   "AIM missile",       "Diving01",              "Pg01",         "medium"}
+        {"missiles 02",   "AIM missile",       "Diving01",              "Pg01",        "medium"}
+,
+        {"missiles 01",   "AIM missile",       "Straight01",            "Apn01",       "small"}
     }
 
 
@@ -19,7 +21,7 @@ function Settings()
     MissileBehaviours = {
 
     --  BehaviourType    MissileBehaviourName   CruisingAltitude   DivingRadius  PredictionTime
-        {"Diving",       "Diving01",            300,               200,          1},
+        {"Diving",       "Diving01",            300,               200,          2},
     
     --  BehaviourType    MissileBehaviourName   AimPointUpShift    DivingRadius
         {"Bombing",      "Bombing01",           30,                20},
@@ -28,7 +30,7 @@ function Settings()
         {"Orbit",        "Orbit01",             400,        50,             600,        30,         5,              2},
     
     --  BehaviourType    MissileBehaviourName   MaxHight    MinHight
-        {"Straight",      "Straight01",         800,        15}
+        {"Straight",     "Straight01",          800,        2}
     }
 
     -----------------------------------------------------------------------------------------
@@ -52,6 +54,7 @@ end
 
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
+
     -- here comes my code --
     -----------------------------------------------------------------------------------------
     -----------------------------------------------------------------------------------------
@@ -75,8 +78,6 @@ end
         GeneralMissileGuidance(I)
     end
     
-    
-    
     -- This is the main function organising my project
     function GeneralMissileGuidance(I)
         if GeneralMissileGuidanceInitDone ~= true then
@@ -94,9 +95,46 @@ end
             GeneralMissileGuidanceUpdate(I)
         end
     end
+    
+    -- This is what controls the launchpads
+    function GeneralMissileGuidanceUpdate(I)
+        -- iterates MissileControllers
+        for MissileControllerId, MissileControllerData in pairs(MissileControllers) do
+            if MissileControllerData.Valid then
+                local MissileBehaviour = MissileBehaviours[MissileControllerData.MissileBehaviourId]
+                local MissileGuidance = MissileGuidances[MissileControllerData.MissileGuidanceId]
+                local TargetInfo = I:GetTargetInfo(MissileControllerData.MainframeId, 0)
+                local AimPointPosition = TargetInfo.AimPointPosition
+                local MissileSize = MissileControllerData[5]
+                -- iterates launchpads
+                for _, luaTransceiverIndex in pairs(MissileControllerData.luaTransceiverIndexes) do
+                    -- iterates missiles
+                    for missileIndex=0 , I:GetLuaControlledMissileCount(luaTransceiverIndex)-1 do
+                        local Id = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex).Id
+                        if MissileData[Id] == nil then MissileData[Id] = {} end
+                        MissileData[Id].Alive = true
 
+                        CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex,MissileSize)
+                        local AimPoint = AimPointPosition + MissileData[Id].LuaGuidanceError.ECMError - MissileData[Id].LuaGuidanceError.MissileError
+                        AimPoint = MissileControllerData.Guiadance(I,TargetInfo,AimPoint,luaTransceiverIndex,missileIndex,MissileGuidance)
+                        MissileControllerData.Behaviour(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint)
+                    end
+                end
+            end
+        end
+        -- deletes dead missiles from the table
+            for Id, missile in pairs(MissileData) do
+                if missile.Alive == true then
+                    MissileData[Id].Alive = false
+                else
+                    MissileData[Id] = nil
+                end
+            end
+    end
 
-
+    -- corrects for two kinds of errors
+    -- 1. stability error
+    -- 2. ECM error
     function CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex,MissileSize)
         local Parts = I:GetMissileInfo(luaTransceiverIndex,missileIndex).Parts
         local MissileInfo = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex)
@@ -105,7 +143,6 @@ end
         missilelength = #Parts
         if MissileData[Id].LuaGuidanceError == nil then
             MissileData[Id].LuaGuidanceError = {}
-            local MissileSize = 2
             local correction
             if MissileSize == "small" then
                 correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.125)
@@ -143,46 +180,6 @@ end
             MissileData[Id].LuaGuidanceError.ECMError = MissileData[Id].LuaGuidanceError.ECMError + Discrepancy
         end
     end
-
-
-    
-    -- This is what controls the launchpads
-    function GeneralMissileGuidanceUpdate(I)
-        -- iterates MissileControllers
-        for MissileControllerId, MissileControllerData in pairs(MissileControllers) do
-            if MissileControllerData.Valid then
-                local MissileBehaviour = MissileBehaviours[MissileControllerData.MissileBehaviourId]
-                local TargetInfo = I:GetTargetInfo(MissileControllerData.MainframeId, 0)
-                local AimPointPosition = TargetInfo.AimPointPosition
-                local MissileSize = MissileControllerData[5]
-
-                -- iterates launchpads
-                for _, luaTransceiverIndex in pairs(MissileControllerData.luaTransceiverIndexes) do
-                    -- iterates missiles
-                    for missileIndex=0 , I:GetLuaControlledMissileCount(luaTransceiverIndex)-1 do
-                        local Id = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex).Id
-                        if MissileData[Id] == nil then MissileData[Id] = {} end
-                        MissileData[Id].Alive = true
-
-                        CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex,MissileSize)
-                        local AimPoint = AimPointPosition + MissileData[Id].LuaGuidanceError.ECMError - MissileData[Id].LuaGuidanceError.MissileError
-                        AimPoint = MissileControllerData.Guiadance(I,TargetInfo,AimPoint,luaTransceiverIndex,missileIndex,MissileGuidance)
-                        MissileControllerData.Behaviour(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint)
-                    end
-                end
-            end
-        end
-        -- deletes dead missiles from the table
-            for Id, missile in pairs(MissileData) do
-                if missile.Alive == true then
-                    MissileData[Id].Alive = false
-                else
-                    MissileData[Id] = nil
-                end
-            end
-    end
-    
-    
     
     -- creates lists of all the launchpads Ids so addressing them is optimised
     -- finds Ids of controlling ai mainframes
@@ -194,10 +191,8 @@ end
         GeneralMissileGuidanceInitDone = false
         local ErrorDetected = false
         local AtLeastOneSystemWorking = false
-    
         -- a list containing a set of data for each missile
         if MissileData == nil then MissileData = {} end
-    
         -- iterates MissileControllers
         local LuaTransceiverCount = I:GetLuaTransceiverCount()
         for MissileControllerId, MissileControllerData in pairs(MissileControllers) do
@@ -207,9 +202,7 @@ end
             local GuidanceName = MissileControllerData[4]
             local MissileSize = MissileControllerData[5]
             MyLog(I,SYSTEM,"—————————### LAUNCHPAD NAME: "..LaunchpadName.." ###—————————")
-    
             local MissileControllerIsSetUpCorrect = true
-    
             -- finds all the launchpads Ids
             local LaunchpadIds = {}
             for luaTransceiverIndex=0 , LuaTransceiverCount-1 do
@@ -220,7 +213,6 @@ end
             end
             MissileControllers[MissileControllerId].luaTransceiverIndexes = LaunchpadIds
             if #LaunchpadIds == 0 then MyLog(I,WARNING,"[✗]: MissileController has no assigned launchpads!"); MissileControllerIsSetUpCorrect = false end
-    
             -- assigning ai mainframes
             for index=0 ,I:Component_GetCount(26)-1 do -------------------------------------------------------------------------------------------------- not sure about indexing
                 if I:Component_GetBlockInfo(26,index).CustomName == ControllingAiName then
@@ -228,12 +220,13 @@ end
                 end
             end
             if MissileControllers[MissileControllerId].MainframeId == nil then MyLog(I,WARNING,"[✗]: GuiadanceGroup has no assigned ai mainframe!"); MissileControllerIsSetUpCorrect = false end
-    
             -- assigning MissileBehaviours
+            local BehaviourType
             for MissileBehaviourId, MissileBehaviour in pairs(MissileBehaviours) do
                 -- checks if the MissileGuidance group can find a MissileBehaviour
                 if MissileBehaviourName == MissileBehaviour[2] then
                     MissileControllers[MissileControllerId].MissileBehaviourId = MissileBehaviourId
+                    BehaviourType = MissileBehaviour[1]
                     if      MissileBehaviour[1] == "Straight"      then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlStraight(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
                     elseif  MissileBehaviour[1] == "Diving"        then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlDiving(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
                     elseif  MissileBehaviour[1] == "CustomCurve"   then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
@@ -248,7 +241,6 @@ end
             if MissileControllers[MissileControllerId].MissileBehaviourId == nil then
                 MyLog(I,WARNING,"[✗]: GuiadanceGroup has no configurated MissileBehaviour!"); MissileControllerIsSetUpCorrect = false
             end
-            
             -- assigning MissileGuidances
             for MissileGuidanceId, MissileGuidance in pairs(MissileGuidances) do
                 -- checks if the MissileGuidance group can find a MissileBehaviour
@@ -260,17 +252,16 @@ end
                     else
                         MyLog(I,WARNING,"[✗]: The MissileGuidance \""..GuidanceName.."\" has no working GuidanceType!"); MissileControllerIsSetUpCorrect = false
                     end
+                    if BehaviourType == "Diving" and MissileGuidance[1] == "APN" then MyLog(I,WARNING,"[✗]: Dont use a APN with a Diving behaviour!"); MissileControllerIsSetUpCorrect = false end
                 end
             end
             if MissileControllers[MissileControllerId].MissileGuidanceId == nil then
                 MyLog(I,WARNING,"[✗]: GuiadanceGroup has no configurated MissileGuidance!"); MissileControllerIsSetUpCorrect = false
             end
-
             -- checking missile size
             if MissileSize ~= "small" and MissileSize ~= "medium" and MissileSize ~= "large" and MissileSize ~= "huge" then
                 MyLog(I,WARNING,"[✗]: GuiadanceGroup has no Size selected!"); MissileControllerIsSetUpCorrect = false
             end
-    
             -- checking if anything triggered MissileControllerIsSetUpCorrect being "false"
             MissileControllers[MissileControllerId].Valid = MissileControllerIsSetUpCorrect
             if MissileControllerIsSetUpCorrect then
@@ -278,11 +269,11 @@ end
                 MyLog(I,SYSTEM,"[✓]: Loaded "..#LaunchpadIds.." launchpads using:\n        - behaviour: "..MissileBehaviourName.."\n        - prediction: "..GuidanceName)
             end
         end
-    
         if ErrorDetected == false and AtLeastOneSystemWorking == true then
             GeneralMissileGuidanceInitDone = true
         else
-            MyLog(I,SYSTEM,"[✗] ---Not a single system could be loaded !!!---")
+            MyLog(I,SYSTEM,"_____________________________________________")
+            MyLog(I,SYSTEM,"[✗]: Not a single system could be loaded !!!")
         end
     end
     
@@ -296,8 +287,6 @@ end
         if aimPoint.y < MinHight then aimPoint.y = MinHight end
         I:SetLuaControlledMissileAimPoint(luaTransceiverIndex,missileIndex,aimPoint.x,aimPoint.y,aimPoint.z)
     end
-    
-    
     
     -- guides missiles along waypoints
     function MissileControlDiving(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition)
@@ -345,7 +334,6 @@ end
         end
     end
     
-    
     -- #EDITHERE
     -- not done yet
     function MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition)
@@ -370,8 +358,6 @@ end
             local height = AimPointPosition.y + 0
         end
     end
-    
-    
     
     -- lets missiles with no propulsion glide onto the enemie
     function MissileControlBomb(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition)
@@ -419,7 +405,6 @@ end
         I:SetLuaControlledMissileAimPoint(luaTransceiverIndex,missileIndex,aimPoint.x,aimPoint.y,aimPoint.z)
     end
     
-    
     -- lets missliles orbit around the AimPointPosition
     function MissileControlOrbit(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition)
         local Radius = MissileBehaviour[3]
@@ -441,7 +426,6 @@ end
         if aimPoint.y < MinHight then aimPoint.y = MinHight end
         I:SetLuaControlledMissileAimPoint(luaTransceiverIndex,missileIndex,aimPoint.x,aimPoint.y,aimPoint.z)
     end
-    
     
     
     
@@ -493,8 +477,6 @@ end
             return MissilePosition + ApnVector
         end
     end
-
-
 
     function PredictionGuidance(I,TargetInfo,AimPointPosition,luaTransceiverIndex,missileIndex,MissileGuidance)
         local MissileInfo = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex)
