@@ -10,6 +10,11 @@
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 
+   ALWAYS BE AWARE OF THE LOG INSIDE THE LUA BOX!
+   It gives you important feedback and tells you if you did set up everything correct.
+
+   You can download an example craft named "Example.blueprint".
+
    Copy the GeneralMissileGuiadance.lua file into a lua box and apply the changes.
    When you change anything inside the lua box, make sure to apply the changes.
 
@@ -56,8 +61,8 @@
    1. LaunchpadName
    2. ControllingAiName
    3. MissileBehaviourName
-   4. PredictionName: possible otions: "APN"
-   5. Size: The size of the missiles (small, medium, large, huge)
+   4. PredictionName: possible otions: "APN", "PG"
+   5. Size: The size of the missiles ("small", "medium", "large", "huge")
 
    missile behaviours
 -----------------------------------------------------------------------------------------
@@ -125,13 +130,17 @@
 
    2.
    GuidanceType: "APN"
+   This is the APN guidance you should already know from vanilla missiles.
    This GuidanceType has 3 options:
    1. LockingAngle: below this bearing angle, the APN kicks in
    2. UnlockingAngle: above this bearing angle, the APN disables
    3. PropConst: how aggressive the missile turns.
       2.65 is a great value for most missiles.
 
-   check for new settings
+   3.
+   GuidanceType: "PG"
+   This is the prediction guidance you should already know from vanilla missiles.
+   This GuidanceType has no options
 -----------------------------------------------------------------------------------------
 -----------------------------------------------------------------------------------------
 

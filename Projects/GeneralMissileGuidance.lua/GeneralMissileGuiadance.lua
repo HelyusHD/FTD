@@ -113,8 +113,10 @@ end
                 correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.25 + 1)
             elseif MissileSize == "large" then
                 correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.5 + 1)
-            else -- huge
+            elseif MissileSize == "huge" then
                 correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength + 1)
+            else
+                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.25 + 1)
             end
             if BreadboardInstalled == true then 
                 StabilityModyfier = 10 * (1-I:GetPropulsionRequest(13))
@@ -216,6 +218,7 @@ end
             local ControllingAiName = MissileControllerData[2]
             local MissileBehaviourName = MissileControllerData[3]
             local PredictionName = MissileControllerData[4]
+            local MissileSize = MissileControllerData[5]
             MyLog(I,SYSTEM,"—————————### LAUNCHPAD NAME: "..LaunchpadName.." ###—————————")
     
             local MissileControllerIsSetUpCorrect = true
@@ -269,6 +272,10 @@ end
                 -- more behaviours to come #EDITHERE
                 end
                 if not matched then MyLog(I,WARNING,"[✗]: The MissileBehaviour \""..MissileBehaviourName.."\" has no working BehaviourType!"); MissileControllerIsSetUpCorrect = false end
+            end
+
+            if MissileSize ~= "small" and MissileSize ~= "medium" and MissileSize ~= "large" and MissileSize ~= "huge" then
+                MyLog(I,WARNING,"[✗]: GuiadanceGroup has no Size selected!"); MissileControllerIsSetUpCorrect = false
             end
     
             MissileControllers[MissileControllerId].Valid = MissileControllerIsSetUpCorrect
