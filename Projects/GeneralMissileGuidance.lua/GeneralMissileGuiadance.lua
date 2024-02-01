@@ -113,7 +113,7 @@ end
                         if MissileData[Id] == nil then MissileData[Id] = {} end
                         MissileData[Id].Alive = true
 
-                        CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex,MissileSize)
+                        CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex,MissileSize,MissileControllerData.SizeScaling)
                         local AimPoint = AimPointPosition + MissileData[Id].LuaGuidanceError.ECMError - MissileData[Id].LuaGuidanceError.MissileError
                         AimPoint = MissileControllerData.Guiadance(I,TargetInfo,AimPoint,luaTransceiverIndex,missileIndex,MissileGuidance)
                         MissileControllerData.Behaviour(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint)
@@ -134,7 +134,7 @@ end
     -- corrects for two kinds of errors
     -- 1. stability error
     -- 2. ECM error
-    function CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex,MissileSize)
+    function CorrectLuaGuidanceError(I,luaTransceiverIndex,missileIndex,MissileSize,SizeScaling)
         local Parts = I:GetMissileInfo(luaTransceiverIndex,missileIndex).Parts
         local MissileInfo = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex)
         local  Id = MissileInfo.Id
@@ -142,25 +142,14 @@ end
         missilelength = #Parts
         if MissileData[Id].LuaGuidanceError == nil then
             MissileData[Id].LuaGuidanceError = {}
-            local correction
-            if MissileSize == "small" then
-                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.125)
-            elseif MissileSize == "medium" then
-                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.25 + 1)
-            elseif MissileSize == "large" then
-                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.5 + 1)
-            elseif MissileSize == "huge" then
-                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength + 1)
-            else
-                correction = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength*0.25 + 1)
-            end
+            local LenghtOffset = I:GetLuaTransceiverInfo(luaTransceiverIndex).Forwards*(missilelength * SizeScaling)
             if BreadboardInstalled == true then 
                 StabilityModyfier = 10 * (1-I:GetPropulsionRequest(13))
             else
                 StabilityModyfier = 0
             end
-            MissileData[Id].LuaGuidanceError.StabilityErrorDir = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - (MissileInfo.Position + correction)).normalized
-            MissileData[Id].LuaGuidanceError.MissileError = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - MissileInfo.Position + correction) + StabilityModyfier * MissileData[Id].LuaGuidanceError.StabilityErrorDir
+            MissileData[Id].LuaGuidanceError.StabilityErrorDir = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - (MissileInfo.Position + LenghtOffset)).normalized
+            MissileData[Id].LuaGuidanceError.MissileError = (I:GetLuaTransceiverInfo(luaTransceiverIndex).Position - MissileInfo.Position + LenghtOffset) + StabilityModyfier * MissileData[Id].LuaGuidanceError.StabilityErrorDir
             MissileData[Id].LuaGuidanceError.ECMError = Vector3(0,0,0)
         end
         if BreadboardInstalled == true then 
@@ -200,7 +189,7 @@ end
             local MissileBehaviourName = MissileControllerData[3]
             local GuidanceName = MissileControllerData[4]
             local MissileSize = MissileControllerData[5]
-            MyLog(I,SYSTEM,"—————————### LAUNCHPAD NAME: "..LaunchpadName.." ###—————————")
+            MyLog(I,SYSTEM,"—————————### LAUNCHPADS NAMED: "..LaunchpadName.." ###—————————")
             local MissileControllerIsSetUpCorrect = true
             -- finds all the launchpads Ids
             local LaunchpadIds = {}
@@ -267,7 +256,21 @@ end
                 AtLeastOneSystemWorking = true
                 MyLog(I,SYSTEM,"[✓]: Loaded "..#LaunchpadIds.." launchpads using:\n        - behaviour: "..MissileBehaviourName.."\n        - prediction: "..GuidanceName)
             end
+            -- density of components and offset of position, depending on missile size
+            if     MissileSize == "small"  then
+                MissileControllers[MissileControllerId].SizeScaling = 0.125
+            elseif MissileSize == "medium" then
+                MissileControllers[MissileControllerId].SizeScaling = 0.25 + 1
+            elseif MissileSize == "large"  then
+                MissileControllers[MissileControllerId].SizeScaling = 0.5 + 1
+            elseif MissileSize == "huge"   then
+                MissileControllers[MissileControllerId].SizeScaling = 1
+            else
+                MissileControllers[MissileControllerId].SizeScaling = 0.25 + 1
+                MyLog(I,WARNING,"[ ! ]: Missile size is not given!")
+            end
         end
+        if BreadboardInstalled ~= true then MyLog(I,WARNING,"[ ! ]: Did you install the bread board? \"BreadboardInstalled\" is still set to false!")end
         if ErrorDetected == false and AtLeastOneSystemWorking == true then
             GeneralMissileGuidanceInitDone = true
         else
