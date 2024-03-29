@@ -58,11 +58,11 @@
    and they will aim ahead like "PredictionName" says.
    You can remove or add groups.
    You can change the settings of a group, which are:
-   1. LaunchpadName
-   2. ControllingAiName
-   3. MissileBehaviourName
-   4. PredictionName: possible otions: "APN", "PG"
-   5. Size: The size of the missiles ("small", "medium", "large", "huge")
+   1. LaunchpadName:        a launchpad named this way will be added to this group
+   2. ControllingAiName:    a mainframe named this way will controll all missiles in this group
+   3. MissileBehaviourName: missiles in this group will use this behaviour
+   4. PredictionName:       possible otions: "APN", "PG"
+   5. Size:                 The size of the missiles ("small", "medium", "large", "huge")
 
    missile behaviours
 -----------------------------------------------------------------------------------------
@@ -79,18 +79,18 @@
    BehaviourTypeName: "Diving"
    This BehaviourType has 4 options:
    1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourType.
-   2. CruisingAltitude: The cruising altitude the missile will stay at, bevore diving on the enemy
-   3. DivingRadius: The distance to the enemy (no respect to altitude difference) below which we dive.
-   4. PredictionTime: We behave depending on where we will be in this many seconds. Does not help hitting the target.
-                      This will help sticking to the CruisingAltitude and DivingRadius.
-                      0 - 3 works for most missiles.
+   2. CruisingAltitude:    The cruising altitude the missile will stay at, bevore diving on the enemy
+   3. DivingRadius:        The distance to the enemy (no respect to altitude difference) below which we dive.
+   4. PredictionTime:      We behave depending on where we will be in this many seconds. Does not help hitting the target.
+                           This will help sticking to the CruisingAltitude and DivingRadius.
+                           0 - 3 works for most missiles.
 
    2.
    BehaviourTypeName: "Bombing"
    This BehaviourType has 3 options:
    1. FlightBehaviourName: A GuiadanceGroup with this MissileBehaviourName will use this BehaviourType.
-   2. AimPointUpShift: We aim above the actual aimpoint, to drop the bomb on top of the enemie.
-   3. DivingRadius: Thats the distance below we stop aiming above the actual aimpoint and try to strike.
+   2. AimPointUpShift:     We aim above the actual aimpoint, to drop the bomb on top of the enemie.
+   3. DivingRadius:        Thats the distance below we stop aiming above the actual aimpoint and try to strike.
 
 --3.
    BehaviourTypeName: "CustomCurve"
@@ -132,10 +132,10 @@
    GuidanceType: "APN"
    This is the APN guidance you should already know from vanilla missiles.
    This GuidanceType has 3 options:
-   1. LockingAngle: below this bearing angle, the APN kicks in
+   1. LockingAngle:   below this bearing angle, the APN kicks in
    2. UnlockingAngle: above this bearing angle, the APN disables
-   3. PropConst: how aggressive the missile turns.
-      2.65 is a great value for most missiles.
+   3. PropConst:      how aggressive the missile turns.
+                      2.65 is a great value for most missiles.
 
    3.
    GuidanceType: "PG"
