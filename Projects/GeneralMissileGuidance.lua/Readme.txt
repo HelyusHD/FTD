@@ -22,7 +22,7 @@
    This code will only guide and not fire missiles.
    Make sure each missile launch pad has a lua transreciver block connected to it.
    Make sure each missile has a lua reciver component.
-   Make sure, your asi has enough processing power.
+   Make sure, your ai has enough processing power.
    Make sure, your craft has detection on the enemy.
 
    Each setting has already some examples so you can better understand how to set one up.
