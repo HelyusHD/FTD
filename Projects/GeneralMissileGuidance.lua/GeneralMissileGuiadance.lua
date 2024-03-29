@@ -11,8 +11,9 @@ function Settings()
     MissileControllers =  { 
 
     --   LaunchpadName    ControllingAiName    MissileBehaviourName     GuidanceName    Size
+        {"missiles 02",   "AIM missile",       "Parabular01",           "Apn01",        "medium"},
         {"missiles 03",   "AIM missile",       "Bombing01",             "Default01",    "medium"},
-        {"missiles 02",   "AIM missile",       "Diving01",              "Pg01",         "medium"},
+        {"missiles 04",   "AIM missile",       "Diving01",              "Pg01",         "medium"},
         {"missiles 01",   "AIM missile",       "Straight01",            "Apn01",        "small"}
     }
 
@@ -30,7 +31,10 @@ function Settings()
         {"Orbit",        "Orbit01",             400,        50,             600,        30,         5,              2},
     
     --  BehaviourType    MissileBehaviourName   MaxHight    MinHight
-        {"Straight",     "Straight01",          800,        2}
+        {"Straight",     "Straight01",          800,        2},
+
+    --  BehaviourType    MissileBehaviourName   MaxHight
+        {"Parabular",    "Parabular01",         200}
     }
 
     -----------------------------------------------------------------------------------------
@@ -221,7 +225,7 @@ end
                     BehaviourType = MissileBehaviour[1]
                     if      MissileBehaviour[1] == "Straight"      then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlStraight(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
                     elseif  MissileBehaviour[1] == "Diving"        then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlDiving(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
-                    elseif  MissileBehaviour[1] == "CustomCurve"   then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
+                    elseif  MissileBehaviour[1] == "Parabular"   then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlParabular(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
                     elseif  MissileBehaviour[1] == "Bombing"       then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlBomb(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
                     elseif  MissileBehaviour[1] == "Orbit"         then MissileControllers[MissileControllerId].Behaviour = function(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) MissileControlOrbit(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPoint) end
                     -- more behaviours to come #EDITHERE
@@ -342,7 +346,31 @@ end
 
     -- #EDITHERE
     -- not done yet
-    function MissileControlCustomCurve(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition)
+    function MissileControlParabular(I,luaTransceiverIndex,missileIndex,MissileBehaviour,AimPointPosition)
+        local MissileInfo = I:GetLuaControlledMissileInfo(luaTransceiverIndex,missileIndex)
+        local MaxHight = MissileBehaviour[3]
+        local LineOfSight = AimPointPosition - MissileInfo.Position
+        local Hight = function(Completion,MaxHight) -- for now just an example function
+            local x = Completion
+            if x < 0 then x = 0 end
+            if x > 1 then x = 1 end
+            local y = (1-(2*x-1)^2) * MaxHight
+            return y
+        end
+
+        if MissileData[MissileInfo.Id].Parabular == nil then MissileData[MissileInfo.Id].Parabular = {
+            SpawnPosition = MissileInfo.Position
+            } 
+        end
+        local SpawnDistance = AimPointPosition - MissileData[MissileInfo.Id].Parabular.SpawnPosition
+        local LineOfSightXZ = LineOfSight ; LineOfSightXZ.y = 0
+        local Completion = 1 - LineOfSightXZ.magnitude / SpawnDistance.magnitude
+        I:Log(Completion)
+        local HightOffset = Hight(Completion,MaxHight)
+        --local aimPoint = MissileInfo.Position + LineOfSight.normalized * 60
+        --aimPoint.y = AimPointPosition.y + HightOffset
+        local aimPoint = AimPointPosition + Vector3(0,HightOffset,0)
+        I:SetLuaControlledMissileAimPoint(luaTransceiverIndex,missileIndex,aimPoint.x,aimPoint.y,aimPoint.z)
     end
 
     -- lets missiles with no propulsion glide onto the enemie
