@@ -45,6 +45,7 @@ end
 
 -- how this would look in FTD
 
+-- creates 3 new PIDs and sets their settings
 function InitPids()
     Pid_Roll = PID()
     Pid_Roll:settings(0.005, 0.0001, 0.01)
@@ -60,9 +61,11 @@ end
 
 -- this will controll pitch, roll and altitude of a craft
 function Update(I)
+    --creates 3 new PIDs once
     if InitPidsDone  ~= true then
         InitPids()
     else
+    -- updates the PIDs
         local R = I:GetConstructRoll()
         if R > 180 then R = R -360 end
         local roll  = Pid_Roll:drive(-R, I:GetGameTime(),0)
