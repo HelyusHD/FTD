@@ -17,7 +17,7 @@ function PID()
         integral = 0,
         derivative = 0,
         lastGameTime = 0,
-        
+
         -- those are the methods of the PID
         settings = function(self,Kg,Ki,Kd)
             self.Kg = Kg
@@ -58,5 +58,33 @@ Pid_01:settings(0.01, 0.1, 0.01)
 
 -- this is how we get a drive from the PID
 -- this should be executed every game tick
---drive = Pid01:drive(measurement, gametime, setpoint)
-drive = Pid_01:drive(10, 0.25, 0)
+drive = Pid01:drive(measurement, gametime, setpoint)
+
+-- how this would look in FTD
+function Update(I)
+    if Pid_Roll == nil then
+        Pid_Roll = PID()
+        Pid_Roll:settings(0.001, 0.0001, 0.1)
+    end
+    if Pid_Pitch == nil then
+        Pid_Pitch = PID()
+        Pid_Pitch:settings(0.005, 0.0001, 0.1)
+    end
+    if Pid_Alt == nil then
+        Pid_Alt = PID()
+        Pid_Alt:settings(0.05, 0.001, 0.1)
+    end
+    local R = I:GetConstructRoll()
+    if R > 180 then R = R -360 end
+    local roll  = Pid_Roll:drive(-R, I:GetGameTime(),0)
+    local pitch = Pid_Pitch:drive(-I:GetConstructPitch(), I:GetGameTime(), 0)
+    local alt   = Pid_Alt:drive(I:GetConstructPosition().y, I:GetGameTime(), 100)
+    I:SetPropulsionRequest(3, 
+roll)
+    I:SetPropulsionRequest(4, 
+pitch)
+    I:SetPropulsionRequest(7, alt
+)
+I:Log("roll: "..roll.."   pitch: "..pitch.."   alt: "..alt)
+
+end
