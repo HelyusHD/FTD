@@ -26,9 +26,10 @@ function FindAllSubconstructs(I, CodeWord)
     return ChosenSubconstructs
 end
 
--- creates a Leg object based on the RootBlock spinner (the spinner no other spinners are placed on)
+-- creates a Leg_ object based on the RootBlock spinner (the spinner no other spinners are placed on)
 function Leg_(I, RootBlock)
     local Leg = {}
+    -- Sn are the joints of a leg where the biggest n is the spinner placed on the craft
     Leg.S1 = RootBlock
     Leg.S2 = I:GetParent(I:GetParent(Leg.S1))
     Leg.S3 = I:GetParent(I:GetParent(Leg.S2))
@@ -49,38 +50,41 @@ function Leg_(I, RootBlock)
         InitLegsDone = false
         MyLog(I,ERROR,"ERROR:   A leg has no assigned direction. You have to name the 1. parent spinner.")
     end
+    -- moves a Leg to a position (x,y,z) where x and z are in craft space and y in global space
+    -- rotates the food of the Leg in global space
+    Leg.MoveLeg = function(self,I,pos,rot)
+        -- calculating position
+        local mod = self.DirectionMod
+        local craft_rotation = Quaternion.Euler(-I:GetConstructRoll(),I:GetConstructYaw(),-I:GetConstructPitch())
+        pos = Vector3(pos.x*mod.x,pos.y*mod.y,pos.z*mod.z)
+        local y_shift = (I:GetSubConstructInfo(self.S6).Position + craft_rotation * (Vector3(pos.x,pos.y,pos.z))).y - pos.y
+        pos = pos - Quaternion.Inverse(craft_rotation) * Vector3(0,y_shift,0)
+        pos = ((self.Rotation)*pos) - self.Offset
+        -- positioning
+        local r = pos.magnitude
+        local a = self.UpperLeg
+        local b = self.LowerLeg
+        if math.abs((a^2+r^2-b^2)/(2*a*r))<=1 then
+            local betha = math.deg(math.acos((a^2+r^2-b^2)/(2*a*r)) + math.asin(pos.y/r))
+            local gamma = math.deg(math.acos((a^2+b^2-r^2)/(2*a*b)))
+            local alpha = math.deg(math.atan2(pos.z,pos.x))
+            I:SetSpinBlockRotationAngle(self.S6, alpha)
+            I:SetSpinBlockRotationAngle(self.S5, -betha)
+            I:SetSpinBlockRotationAngle(self.S4, -gamma-180)
+        end
+
+        --rotating
+        local a = (I:GetSubConstructInfo(self.S4).Rotation)
+        local euler = (rot * (a)).eulerAngles
+        I:SetSpinBlockRotationAngle(self.S3, -euler.z)
+        I:SetSpinBlockRotationAngle(self.S2, -euler.x)
+        I:SetSpinBlockRotationAngle(self.S1, -euler.y)
+    end
     return Leg
 end
 
 
-
-function MoveLeg(I,Leg,pos,rot)
-    -- calculating position
-    local mod = Leg.DirectionMod
-    local craft_rotation = Quaternion.Euler(-I:GetConstructRoll(),I:GetConstructYaw(),-I:GetConstructPitch())
-    pos = Vector3(pos.x*mod.x,pos.y*mod.y,pos.z*mod.z)
-    local y_shift = (I:GetSubConstructInfo(Leg.S6).Position + craft_rotation * (Vector3(pos.x,pos.y,pos.z))).y - pos.y
-    pos = pos - Quaternion.Inverse(craft_rotation) * Vector3(0,y_shift,0)
-    pos = ((Leg.Rotation)*pos) - Leg.Offset
-    -- positioning
-    local r = pos.magnitude
-    local a = Leg.UpperLeg
-    local b = Leg.LowerLeg
-    local alpha = math.deg(math.atan2(pos.z,pos.x))
-    local betha = math.deg(math.acos((a^2+r^2-b^2)/(2*a*r)) + math.asin(pos.y/r))
-    local gamma = math.deg(math.acos((a^2+b^2-r^2)/(2*a*b)))
-    I:SetSpinBlockRotationAngle(Leg.S6, alpha)
-    I:SetSpinBlockRotationAngle(Leg.S5, -betha)
-    I:SetSpinBlockRotationAngle(Leg.S4, -gamma-180)
-
-    --rotating
-    local a = (I:GetSubConstructInfo(Leg.S4).Rotation)
-    local euler = (rot * (a)).eulerAngles
-    I:SetSpinBlockRotationAngle(Leg.S3, -euler.z)
-    I:SetSpinBlockRotationAngle(Leg.S2, -euler.x)
-    I:SetSpinBlockRotationAngle(Leg.S1, -euler.y)
-end
-
+-- creates Leg_ objects for each spinner found named "LEG"
 function InitLegs(I)
     InitLegsDone = true
     local Legs = {}
@@ -90,18 +94,19 @@ function InitLegs(I)
     return Legs
 end
 
+-- sends commands to each leg
 function WaterSkiUpdate(I)
-    local t = I:GetGameTime()
-    local w = 0
-    local r = 180
-    local pos = Vector3(40,0,20)
     for LegIndex, Leg in pairs(Legs) do
-        local yaw_command = I:GetPropulsionRequest(5) * Leg.DirectionMod.x * 45
-        local rot = Quaternion.Euler(0,-I:GetConstructYaw(),0)
-        MoveLeg(I,Leg,pos,rot)
+        local pos = Vector3(40,-5,20)
+        local yaw_command = math.abs(I:GetPropulsionRequest(5))*(-I:GetConstructYaw() - I:GetPropulsionRequest(5) * Leg.DirectionMod.x * 45)
+        local velocity = I:GetVelocityVector()
+        local velocity_command = (1 - math.abs(I:GetPropulsionRequest(5)))*(-math.deg(math.atan2(velocity.x,velocity.z)))
+        local rot = Quaternion.Euler(0,yaw_command + velocity_command,0)
+        Leg:MoveLeg(I,pos,rot)
     end
 end
 
+-- controlls legs to keep hydrofoils at the desired position
 function WaterSki(I)
     if InitLegsDone ~= true then
         ClearMyLogs(I)
@@ -111,10 +116,7 @@ function WaterSki(I)
     end
 end
 
-function Update(I)
-    WaterSki(I)
-end
-
+-- a better log function
 FinalMessage = ""
 function MyLog(I,priority,Message)
     if priority <= DebugLevel then
@@ -130,4 +132,8 @@ end
 function ClearMyLogs(I)
     FinalMessage = ""
     I:ClearLogs()
+end
+
+function Update(I)
+    WaterSki(I)
 end
