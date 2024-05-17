@@ -8,6 +8,25 @@
     DebugLevel = SYSTEM
 
 
+-- Function to convert Euler angles (in degrees) to quaternion
+-- Input: Three Euler angles (in degrees) representing rotations around X, Y, and Z axis
+-- Output: Corresponding quaternion
+-- FTDs implementation of Quaternion.Euler() is not working correctly from time to time, so I have to use this
+function EulerToQuaternion(degreesX, degreesY, degreesZ)
+    -- Convert degrees to radians
+    local rx = math.rad(degreesZ)
+    local ry = math.rad(degreesX)
+    local rz = math.rad(degreesY)
+
+    local qx = math.cos(rx / 2) * math.sin(ry / 2) * math.cos(rz / 2) + math.sin(rx / 2) * math.cos(ry / 2) * math.sin(rz / 2)
+    local qy = math.cos(rx / 2) * math.cos(ry / 2) * math.sin(rz / 2) - math.sin(rx / 2) * math.sin(ry / 2) * math.cos(rz / 2)
+    local qz = math.sin(rx / 2) * math.cos(ry / 2) * math.cos(rz / 2) - math.cos(rx / 2) * math.sin(ry / 2) * math.sin(rz / 2)
+    local qw = math.cos(rx / 2) * math.cos(ry / 2) * math.cos(rz / 2) + math.sin(rx / 2) * math.sin(ry / 2) * math.sin(rz / 2)
+    
+    return Quaternion(qx,qy,qz,qw)
+end
+
+
 -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
 -- returns a list of all subconstructs with condition:
 -- <CodeWord> is part of CustomName
@@ -55,7 +74,7 @@ function Leg_(I, RootBlock)
     Leg.MoveLeg = function(self,I,pos,rot)
         -- calculating position
         local mod = self.DirectionMod
-        local craft_rotation = Quaternion.Euler(-I:GetConstructRoll(),I:GetConstructYaw(),-I:GetConstructPitch())
+        local craft_rotation = EulerToQuaternion(-I:GetConstructRoll(),I:GetConstructYaw(),-I:GetConstructPitch())
         pos = Vector3(pos.x*mod.x,pos.y*mod.y,pos.z*mod.z)
         local y_shift = (I:GetSubConstructInfo(self.S6).Position + craft_rotation * (Vector3(pos.x,pos.y,pos.z))).y - pos.y
         pos = pos - Quaternion.Inverse(craft_rotation) * Vector3(0,y_shift,0)
@@ -98,10 +117,11 @@ end
 function WaterSkiUpdate(I)
     for LegIndex, Leg in pairs(Legs) do
         local pos = Vector3(40,-5,20)
-        local yaw_command = math.abs(I:GetPropulsionRequest(5))*(-I:GetConstructYaw() - I:GetPropulsionRequest(5) * Leg.DirectionMod.x * 45)
+        local yaw_command = -I:GetConstructYaw() - I:GetPropulsionRequest(5) * Leg.DirectionMod.x * 45
         local velocity = I:GetVelocityVector()
         local velocity_command = (1 - math.abs(I:GetPropulsionRequest(5)))*(-math.deg(math.atan2(velocity.x,velocity.z)))
-        local rot = Quaternion.Euler(0,yaw_command + velocity_command,0)
+        --local rot = EulerToQuaternion(0,yaw_command + velocity_command,0)
+        local rot = EulerToQuaternion(0,yaw_command,0)
         Leg:MoveLeg(I,pos,rot)
     end
 end
