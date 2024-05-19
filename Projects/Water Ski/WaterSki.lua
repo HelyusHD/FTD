@@ -74,8 +74,19 @@
 --||| CLASSES
 
     -- creates a Leg_ object based on the RootBlock spinner (the spinner no other spinners are placed on)
-    function Leg_(I, RootBlock)
-        local Leg = {}
+    function Leg_(I, RootBlock, Limits, RestingPosition)
+        local Leg = {
+            Limits = {
+                S6 = {min = Limits.S6.min, max = Limits.S6.max}, -- extreme angles for S6
+                S5 = {min = Limits.S5.min, max = Limits.S5.max}, -- extreme angles for S5
+                S4 = {min = Limits.S4.min, max = Limits.S4.max}  -- extreme angles for S4
+            },
+            RestingPosition = {
+                S6 = RestingPosition.S6,
+                S5 = RestingPosition.S5,
+                S4 = RestingPosition.S4
+            }
+        }
         -- Sn are the joints of a leg where the biggest n is the spinner placed on the craft
         Leg.S1 = RootBlock
         Leg.S2 = I:GetParent(I:GetParent(Leg.S1))
@@ -112,14 +123,24 @@
             local r = pos.magnitude
             local a = self.UpperLeg
             local b = self.LowerLeg + self.SpinnerShift
+            local alpha, betha, gamma
+
             if math.abs((a^2+r^2-b^2)/(2*a*r))<=1 then
-                local betha = math.deg(math.acos((a^2+r^2-b^2)/(2*a*r)) + math.asin(pos.y/r))
-                local gamma = math.deg(math.acos((a^2+b^2-r^2)/(2*a*b)))
-                local alpha = math.deg(math.atan2(pos.z,pos.x))
-                I:SetSpinBlockRotationAngle(self.S6, alpha)
-                I:SetSpinBlockRotationAngle(self.S5, -betha)
-                I:SetSpinBlockRotationAngle(self.S4, -gamma-180)
+                alpha = math.deg(math.atan2(pos.z,pos.x))
+                betha = math.deg(math.acos((a^2+r^2-b^2)/(2*a*r)) + math.asin(pos.y/r))
+                gamma = math.deg(math.acos((a^2+b^2-r^2)/(2*a*b)))
+
+                alpha = math.min(alpha,self.Limits.S6.max); alpha = math.max(alpha,self.Limits.S6.min)
+                betha = math.min(betha,self.Limits.S5.max); betha = math.max(betha,self.Limits.S5.min)
+                gamma = math.min(gamma,self.Limits.S4.max); gamma = math.max(gamma,self.Limits.S4.min)
+            else
+                alpha =  self.RestingPosition.S6
+                betha =  self.RestingPosition.S5
+                gamma =  self.RestingPosition.S4
             end
+            I:SetSpinBlockRotationAngle(self.S6, alpha)
+            I:SetSpinBlockRotationAngle(self.S5, -betha)
+            I:SetSpinBlockRotationAngle(self.S4, -gamma-180)
 
             --rotating
             local a = (I:GetSubConstructInfo(self.S4).Rotation)
@@ -157,11 +178,13 @@
         end
 
         -- keeps a light ticking to turn it off
-        Light.Update = function(self,I)
+        Light.Run = function(self,I)
             if self.tick <= self.ticks then
                 self.tick = self.tick + 1
+                return false
             else
                 I:Component_SetFloatLogic_1(30, self.index, 0, 0)
+                return true
             end
         end
 
@@ -189,7 +212,8 @@
             End   = -1, -- index of end light
             Progress = 0,
             TotalDistance = 0, -- ditance from start to end
-            Lights = {},
+            Lights = {}, -- list of al lights being part of the animation
+            ActiveLights = {}, -- list of updated lights
             ClosestLightLast = {index = -1},
             Valid = false,
             SubConstructIdentifier = SubConstructIdentifier,
@@ -248,12 +272,14 @@
             if ClosestLights[1].index ~= self.ClosestLightLast.index then
                 if ClosestLights[1].index == self.Start then
                     ClosestLights[1]:On(I,BurnTicks/2,Intensity)
+                    table.insert(self.ActiveLights,ClosestLights[1])
                 else
                     ClosestLights[1]:On(I,BurnTicks,Intensity)
+                    table.insert(self.ActiveLights,ClosestLights[1])
                 end
             end
-            for _, light in pairs(self.Lights) do
-                light:Update(I)
+            for index, light in pairs(self.ActiveLights) do
+                if light:Run(I) then table.remove(self.ActiveLights,index) end
             end
             self.ClosestLightLast = ClosestLights[1]
         end
@@ -278,124 +304,96 @@
             end
         end
         -- adds a animation to this animation
-        LA.Link = function(self,I,SubConstructIdentifier,Id,Animations,DistanceOfAnimations)
+        LA.Link = function(self,I,Animation,DistanceOfAnimations)
             MyLog(I,SYSTEM,"System:   linking animation")
-            for _, Animation in pairs(Animations) do
-                if Animation.SubConstructIdentifier == SubConstructIdentifier and Animation.Id == Id then
-                    if DistanceOfAnimations == nil then
-                        DistanceOfAnimations = (I:Component_GetBlockInfo(type,self.End).Position - I:Component_GetBlockInfo(type,Animation.Start).Position).Magnitude
-                    end
-                    local AdditionalLights = Animation.Lights
-                    for key, Light in pairs(AdditionalLights) do
-                        -- shifts new lights ahead in order
-                        AdditionalLights[key].order = AdditionalLights[key].order + DistanceOfAnimations + self.TotalDistance
-                        -- adds new lights
-                        table.insert(self.Lights,AdditionalLights[key])
-                    end
-                    self.TotalDistance = self.TotalDistance + Animation.TotalDistance + DistanceOfAnimations
-                    self.End = Animation.End
-                end
+            if DistanceOfAnimations == nil then
+                DistanceOfAnimations = (I:Component_GetBlockInfo(type,self.End).Position - I:Component_GetBlockInfo(type,Animation.Start).Position).magnitude
             end
+            local AdditionalLights = Animation.Lights
+            for key, Light in pairs(AdditionalLights) do
+                -- shifts new lights ahead in order
+                AdditionalLights[key].order = AdditionalLights[key].order + DistanceOfAnimations + self.TotalDistance
+                -- adds new lights
+                table.insert(self.Lights,AdditionalLights[key])
+            end
+            self.TotalDistance = self.TotalDistance + Animation.TotalDistance + DistanceOfAnimations
+            self.End = Animation.End
         end
 
+        LA:Off(I)
         return LA
     end
 
 
 --||| INITS
     --creates Leg_ objects for each spinner found named "LEG"
-    function InitLegs(I)
+    function Init(I)
         InitLegsDone = true
-        local Legs = {}
-        for LegIndex, RootBlock in pairs(FindAllSubconstructs(I, "LEG")) do
-            table.insert(Legs, Leg_(I, RootBlock))
-        end
-        return Legs
-    end
-
-    -- creates LightAnimation_ objects for all Leg_ objects
-    function InitLightAnimations(I)
         InitLightsDone = true
-        local Animations = {}
+        Legs = {}
+        Animations = {}
         ActiveAnimations = {}
-        local Ids = {"01","02"}
-        for LegIndex, Leg in pairs(Legs) do
-            local SubConstructIdentifiers = {Leg.S5,Leg.S4}
-            for _, SubConstructIdentifier in pairs(SubConstructIdentifiers) do
-                for _, Id in pairs(Ids) do
-                    local Animation = LightAnimation_(I,SubConstructIdentifier,Id)
-                    table.insert(Animations,Animation)
-                end
+        for LegIndex, RootBlock in pairs(FindAllSubconstructs(I, "LEG")) do
+            local Limits = {
+                S6 = {min = -45, max = 45}, -- extreme angles for S6
+                S5 = {min = -50, max = 70}, -- extreme angles for S5
+                S4 = {min =  30, max = 180} -- extreme angles for S4
+            }
+            local RestingPosition = {
+                S6 = 0,
+                S5 = Limits.S5.max,
+                S4 = 30
+            }
+            local Leg = Leg_(I, RootBlock, Limits, RestingPosition)
+            for _, Id in pairs({"01","02"}) do
+                local MainAnimation = LightAnimation_(I,Leg.S5,Id)
+                local AnimationToAdd = LightAnimation_(I,Leg.S4,Id)
+                MainAnimation:Link(I,AnimationToAdd,DistanceOfAnimations)
+                table.insert(Animations, MainAnimation)
+                table.insert(ActiveAnimations, MainAnimation)
             end
+            table.insert(Legs, Leg)
         end
-        for LegIndex, Leg in pairs(Legs) do
-            for _, Animation in pairs(Animations) do
-                for _, Id in pairs(Ids) do
-                    if Animation.SubConstructIdentifier == Leg.S5 and Animation.Id == Id then
-                        Animation:Link(I,Leg.S4,Id,Animations,5)
-                        table.insert(ActiveAnimations,Animation)
-                    end
-                end
-            end
-        end
-        return Animations
     end
---||| WaterSki
+--||| UPDATE
 
-    -- controlls legs to keep hydrofoils at the desired position
+    -- Master function organising / controlling the project
     function WaterSki(I)
-        if InitLegsDone ~= true then
+        if InitLegsDone ~= true or InitLightsDone ~= true then
             ClearMyLogs(I)
-            Legs = InitLegs(I)
-        else
-            WaterSkiUpdate(I)
-        end
-    end
-
-    -- sends commands to each leg
-    function WaterSkiUpdate(I)
-        for LegIndex, Leg in pairs(Legs) do
-            local pos = Vector3(5,-5,20)
-            local yaw_command = -I:GetConstructYaw() - I:GetPropulsionRequest(5) * Leg.DirectionMod.x * 45
-            local velocity = I:GetVelocityVector()
-            local velocity_command = (1 - math.abs(I:GetPropulsionRequest(5)))*(-math.deg(math.atan2(velocity.x,velocity.z)))
-            --local rot = EulerToQuaternion(0,yaw_command + velocity_command,0)
-            local rot = EulerToQuaternion(0,yaw_command,0)
-            Leg:MoveLeg(I,pos,rot)
-        end
-    end
---||| LightAnimations
-
-    -- master function
-    function LightAnimations(I)
-        if InitLightsDone ~= true then
-            Animations = InitLightAnimations(I)
+            Init(I)
             local count = 0
             for _, Animation in pairs(Animations) do
                 if Animation.Valid then count = count + 1 end
             end
             MyLog(I,SYSTEM,"SYSTEM:   found "..count.." valid light animations")
         else
-            UpdateLights(I)
-        end
-    end
+        -- sends commands to each leg
+            for LegIndex, Leg in pairs(Legs) do
+                local pos = Vector3(5,-5,20)
+                local yaw_command = -I:GetConstructYaw() - I:GetPropulsionRequest(5) * Leg.DirectionMod.x * 45
+                local velocity = I:GetVelocityVector()
+                local velocity_command = (1 - math.abs(I:GetPropulsionRequest(5)))*(-math.deg(math.atan2(velocity.x,velocity.z)))
+                --local rot = EulerToQuaternion(0,yaw_command + velocity_command,0)
+                local rot = EulerToQuaternion(0,yaw_command,0)
+                Leg:MoveLeg(I,pos,rot)
+            end
 
-    -- updates / controlls all LightAnimations
-    function UpdateLights(I)
-        for _, Animation in pairs(ActiveAnimations) do
-            if Animation.Valid then
-                local PeriodTicks = 60
-                local BurnTicks = 2
-                local Intensity  = 10
-                Animation:Range(I,4)
-                Animation:Color(I,1,0.5,0)
-                Animation:Run(I,PeriodTicks,BurnTicks,Intensity)
+            -- updates / controlls all LightAnimations
+            for _, Animation in pairs(ActiveAnimations) do
+                if Animation.Valid then
+                    local PeriodTicks = 60
+                    local BurnTicks = 2
+                    local Intensity  = 10
+                    Animation:Range(I,4)
+                    Animation:Color(I,1,0.5,0)
+                    Animation:Run(I,PeriodTicks,BurnTicks,Intensity)
+                end
             end
         end
     end
 
--- is called by the game to update this code
-function Update(I)
-    WaterSki(I)
-    LightAnimations(I)
-end
+    -- is called by the game to update this code
+    function Update(I)
+        WaterSki(I)
+    end
