@@ -1,8 +1,10 @@
-
+InitTimeInterval = -1 -- how often Init runs again and again | <= 0 disables this feature
+InitTimeCounter = 0
 
 --||| MATH / USEFUL lib
     ---Enumerations for Logging purposes
     ERROR = 0
+    DEBUG = 0.5
     WARNING = 1
     SYSTEM = 2
     UPDATE = 3
@@ -28,11 +30,101 @@
         I:ClearLogs()
     end
 
+    MyOwnQuaternion = {}
+    MyOwnQuaternion.__index = MyOwnQuaternion
+    
+    -- MyOwnQuaternion constructor
+    function MyOwnQuaternion.new(w, x, y, z)
+        local self = setmetatable({}, MyOwnQuaternion)
+        self.w = w
+        self.x = x
+        self.y = y
+        self.z = z
+        self.print= function(self)
+            return "MyQuat: "..tostring(x)..","..tostring(y)..","..tostring(z)..","..tostring(w)
+        end
+        return self
+    end
+    
+    -- MyOwnQuaternion * MyOwnQuaternion multiplication
+    function MyOwnQuaternion:__mul(other)
+        if getmetatable(other) == MyOwnQuaternion then
+            return MyOwnQuaternion.new(
+                self.w * other.w - self.x * other.x - self.y * other.y - self.z * other.z,
+                self.w * other.x + self.x * other.w + self.y * other.z - self.z * other.y,
+                self.w * other.y - self.x * other.z + self.y * other.w + self.z * other.x,
+                self.w * other.z + self.x * other.y - self.y * other.x + self.z * other.w
+            )
+        elseif type(other) == "table" and other.x and other.y and other.z then
+            -- MyOwnQuaternion * Vector3 multiplication
+            local num = self.x * 2
+            local num2 = self.y * 2
+            local num3 = self.z * 2
+            local num4 = self.x * num
+            local num5 = self.y * num2
+            local num6 = self.z * num3
+            local num7 = self.x * num2
+            local num8 = self.x * num3
+            local num9 = self.y * num3
+            local num10 = self.w * num
+            local num11 = self.w * num2
+            local num12 = self.w * num3
+    
+            return Vector3(
+                (1 - (num5 + num6)) * other.x + (num7 - num12) * other.y + (num8 + num11) * other.z,
+                (num7 + num12) * other.x + (1 - (num4 + num6)) * other.y + (num9 - num10) * other.z,
+                (num8 - num11) * other.x + (num9 + num10) * other.y + (1 - (num4 + num5)) * other.z
+            )
+        else
+
+        end
+    end
+
+    -- Calculate the inverse of the quaternion
+    function MyOwnQuaternion:Inverse()
+        local norm = self.w * self.w + self.x * self.x + self.y * self.y + self.z * self.z
+        return MyOwnQuaternion.new(self.w / norm, -self.x / norm, -self.y / norm, -self.z / norm)
+    end
+
+    function quaternionToEuler(quaternion)
+        -- Extract the quaternion components
+        local x = quaternion.y
+        local y = quaternion.x
+        local z = quaternion.z
+        local w = quaternion.w
+        
+        -- Calculate the Euler angles from the quaternion
+        local ysqr = y * y
+    
+        -- Roll (x-axis rotation)
+        local t0 = 2 * (w * x + y * z)
+        local t1 = 1 - 2 * (x * x + ysqr)
+        local roll = math.atan2(t0, t1)
+    
+        -- Pitch (y-axis rotation)
+        local t2 = 2 * (w * y - z * x)
+        if t2 > 1 then t2 = 1 end
+        if t2 < -1 then t2 = -1 end
+        local pitch = math.asin(t2)
+    
+        -- Yaw (z-axis rotation)
+        local t3 = 2 * (w * z + x * y)
+        local t4 = 1 - 2 * (ysqr + z * z)
+        local yaw = math.atan2(t3, t4)
+    
+        -- Convert from radians to degrees
+        roll = roll * 180 / math.pi
+        pitch = pitch * 180 / math.pi
+        yaw = yaw * 180 / math.pi
+    
+        return Vector3(pitch, roll, yaw)
+    end
+
     -- Function to convert Euler angles (in degrees) to quaternion
     -- Input: Three Euler angles (in degrees) representing rotations around X, Y, and Z axis
     -- Output: Corresponding quaternion
     -- FTDs implementation of Quaternion.Euler() is not working correctly from time to time, so I have to use this
-    function EulerToQuaternion(degreesX, degreesY, degreesZ)
+    function EulerToMyOwnQuaternion(degreesX, degreesY, degreesZ)
         -- Convert degrees to radians
         local rx = math.rad(degreesZ)
         local ry = math.rad(degreesX)
@@ -43,7 +135,7 @@
         local qz = math.sin(rx / 2) * math.cos(ry / 2) * math.cos(rz / 2) - math.cos(rx / 2) * math.sin(ry / 2) * math.sin(rz / 2)
         local qw = math.cos(rx / 2) * math.cos(ry / 2) * math.cos(rz / 2) + math.sin(rx / 2) * math.sin(ry / 2) * math.sin(rz / 2)
         
-        return Quaternion(qx,qy,qz,qw)
+        return MyOwnQuaternion.new(qw,qx,qy,qz)
     end
 
     -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
@@ -85,7 +177,7 @@
                 S6 = RestingPosition.S6,
                 S5 = RestingPosition.S5,
                 S4 = RestingPosition.S4
-            }
+            },
         }
         -- Sn are the joints of a leg where the biggest n is the spinner placed on the craft
         Leg.S1 = RootBlock
@@ -95,30 +187,44 @@
         Leg.S5 = I:GetParent(Leg.S4)
         Leg.S6 = I:GetParent(Leg.S5)
         Leg.Rotation = I:GetSubConstructIdleRotation(Leg.S6)
+        Leg.Rotation = MyOwnQuaternion.new(Leg.Rotation.w,Leg.Rotation.x,Leg.Rotation.y,Leg.Rotation.z)
         Leg.UpperLeg = (I:GetSubConstructInfo(Leg.S4).Position - I:GetSubConstructInfo(Leg.S5).Position).magnitude
         Leg.LowerLeg = (I:GetSubConstructInfo(Leg.S3).Position - I:GetSubConstructInfo(Leg.S4).Position).magnitude
         Leg.SpinnerShift = (I:GetSubConstructInfo(Leg.S2).Position - I:GetSubConstructInfo(Leg.S3).Position).magnitude
-        Leg.Offset = I:GetSubConstructInfo(Leg.S5).Position - I:GetSubConstructInfo(Leg.S6).Position
+        local rot_S6 = I:GetSubConstructInfo(Leg.S6).Rotation
+        Leg.Offset = MyOwnQuaternion.new(rot_S6.w,rot_S6.x,rot_S6.y,rot_S6.z):Inverse() * (I:GetSubConstructInfo(Leg.S5).Position - I:GetSubConstructInfo(Leg.S6).Position)
+
         local CustomName_S6 = I:GetSubConstructInfo(Leg.S6).CustomName
         if string.find(CustomName_S6, "fr") then Leg.DirectionMod = Vector3(1,1,1) end
         if string.find(CustomName_S6, "fl") then Leg.DirectionMod = Vector3(1,1,-1) end
         if string.find(CustomName_S6, "br") then Leg.DirectionMod = Vector3(-1,1,1) end
         if string.find(CustomName_S6, "bl") then Leg.DirectionMod = Vector3(-1,1,-1) end
 
+        Leg.Debug = false
+        if string.find(CustomName_S6, "debug") then Leg.Debug = true end
+
         if Leg.DirectionMod == nil then 
             InitLegsDone = false
             MyLog(I,ERROR,"ERROR:   A leg has no assigned direction. You have to name the 1. parent spinner.")
         end
+
+        for index = 0 , I:GetSubconstructsChildrenCount(Leg.S1)-1 do
+            local rudder_id = I:GetSubConstructChildIdentifier(Leg.S1, index)
+            if string.find(I:GetSubConstructInfo(rudder_id).CustomName,"rudder") then
+                Leg.rudder_id = rudder_id
+            end
+        end
+
         -- moves a Leg to a position (x,y,z) where x and z are in craft space and y in global space
         -- rotates the food of the Leg in global space
         Leg.MoveLeg = function(self,I,pos,rot)
             -- calculating position
             local mod = self.DirectionMod
-            local craft_rotation = EulerToQuaternion(-I:GetConstructRoll(),I:GetConstructYaw(),-I:GetConstructPitch())
+            local craft_rotation = EulerToMyOwnQuaternion(-I:GetConstructRoll(),I:GetConstructYaw(),-I:GetConstructPitch())
             pos = Vector3(pos.x*mod.x,pos.y*mod.y,pos.z*mod.z)
             local y_shift = (I:GetSubConstructInfo(self.S6).Position + craft_rotation * (Vector3(pos.x,pos.y,pos.z))).y - pos.y
-            pos = pos - Quaternion.Inverse(craft_rotation) * Vector3(0,y_shift,0)
-            pos = ((self.Rotation)*pos) - self.Offset
+            pos = pos - craft_rotation:Inverse() * Vector3(0,y_shift,0)
+            pos = (self.Rotation)*pos - self.Offset
             -- positioning
             local r = pos.magnitude
             local a = self.UpperLeg
@@ -144,11 +250,44 @@
 
             --rotating
             local a = (I:GetSubConstructInfo(self.S4).Rotation)
-            local euler = (rot * (a)).eulerAngles
+            a = MyOwnQuaternion.new(a.w,a.x,a.y,a.z)
+            local euler = quaternionToEuler(rot * (a))
+
+            
             I:SetSpinBlockRotationAngle(self.S3, -euler.z)
             I:SetSpinBlockRotationAngle(self.S2, -euler.x)
             I:SetSpinBlockRotationAngle(self.S1, -euler.y)
         end
+
+        Leg.Rudder = function(self,I,yaw_request)
+            if self.rudder_id ~= nil then
+                local lever = I:GetSubConstructInfo(self.rudder_id).Position - I:GetConstructCenterOfMass()
+                local rot = I:GetSubConstructInfo(self.S1).Rotation
+                rot = MyOwnQuaternion.new(rot.w, rot.x, rot.y, rot.z)
+                lever = rot:Inverse() * lever
+                local best_angle_right = -math.deg(math.atan2(lever.x,lever.z)) + 180
+                local best_angle_left = (-math.deg(math.atan2(lever.x,lever.z)) + 90) / 2
+                local angle
+                if yaw_request >= 0 then
+                    if self.DirectionMod.z > 0 then
+                        angle = best_angle_right * yaw_request
+                    else
+                        angle = 0
+                    end
+                else
+                    if self.DirectionMod.z < 0 then
+                        angle = -best_angle_left * yaw_request
+                    else
+                        angle = 0
+                    end
+                end
+
+                ClearMyLogs(I)
+                MyLog(I,SYSTEM,"SYSTEM:   best_angle: "..tostring(angle))
+                I:SetSpinBlockRotationAngle(self.rudder_id, angle)
+            end
+        end
+
         return Leg
     end
 
@@ -217,7 +356,10 @@
             ClosestLightLast = {index = -1},
             Valid = false,
             SubConstructIdentifier = SubConstructIdentifier,
-            Id = Id
+            Id = Id,
+            PeriodTicks = 100,
+            BurnTicks = 10,
+            Intensity = 10
         }
         local LightsOnSubConstruct = {}
         for index = 0, I:Component_GetCount(type)-1 do
@@ -255,9 +397,9 @@
         -- PeriodTicks: ticks to travel from start to end and
         -- BurnTicks: how long a light stays on
         -- Intensity: [0,10]
-        LA.Run = function(self,I,PeriodTicks,BurnTicks,Intensity)
+        LA.Run = function(self,I)
             local TotalDistance = self.TotalDistance
-            local TravelSpeed = TotalDistance/PeriodTicks
+            local TravelSpeed = TotalDistance/self.PeriodTicks
 
             if self.Progress <= TotalDistance + TravelSpeed then
                 self.Progress = self.Progress + TravelSpeed
@@ -271,10 +413,10 @@
             end)
             if ClosestLights[1].index ~= self.ClosestLightLast.index then
                 if ClosestLights[1].index == self.Start then
-                    ClosestLights[1]:On(I,BurnTicks/2,Intensity)
+                    ClosestLights[1]:On(I,self.BurnTicks/2,self.Intensity)
                     table.insert(self.ActiveLights,ClosestLights[1])
                 else
-                    ClosestLights[1]:On(I,BurnTicks,Intensity)
+                    ClosestLights[1]:On(I,self.BurnTicks,self.Intensity)
                     table.insert(self.ActiveLights,ClosestLights[1])
                 end
             end
@@ -294,6 +436,30 @@
         LA.Color = function(self,I,red,green,blue)
             for _, light in pairs(self.Lights) do
                 light:Color(I,red,green,blue)
+            end
+        end
+
+        LA.RainbowColors = function(self,I)
+            local r, g, b
+            for _, light in pairs(self.Lights) do
+                local t = light.order/self.TotalDistance
+                local i = math.floor(t * 6)
+                local f = t * 6 - i
+                local q = 1 - f
+                if i == 0 then
+                    r, g, b = 1, f, 0
+                elseif i == 1 then
+                    r, g, b = q, 1, 0
+                elseif i == 2 then
+                    r, g, b = 0, 1, f
+                elseif i == 3 then
+                    r, g, b = 0, q, 1
+                elseif i == 4 then
+                    r, g, b = f, 0, 1
+                elseif i == 5 then
+                    r, g, b = 1, 0, q
+                end
+                light:Color(I,r,g,b)
             end
         end
 
@@ -348,7 +514,14 @@
             for _, Id in pairs({"01","02"}) do
                 local MainAnimation = LightAnimation_(I,Leg.S5,Id)
                 local AnimationToAdd = LightAnimation_(I,Leg.S4,Id)
+                local DistanceOfAnimations = 5
                 MainAnimation:Link(I,AnimationToAdd,DistanceOfAnimations)
+                MainAnimation:Range(I,6)
+                --MainAnimation:RainbowColors(I)
+                MainAnimation.PeriodTicks = 80
+                MainAnimation.BurnTicks = 4
+                MainAnimation.Intensity = 10
+                MainAnimation:Color(I,1,0.5,0)
                 table.insert(Animations, MainAnimation)
                 table.insert(ActiveAnimations, MainAnimation)
             end
@@ -368,26 +541,38 @@
             end
             MyLog(I,SYSTEM,"SYSTEM:   found "..count.." valid light animations")
         else
+            InitTimeCounter = InitTimeCounter + 1
+            if InitTimeCounter >= InitTimeInterval * 20 and InitTimeInterval > 0 then
+                InitTimeCounter = 0
+                InitLegsDone = false
+                InitLightsDone = false
+            end
         -- sends commands to each leg
             for LegIndex, Leg in pairs(Legs) do
-                local pos = Vector3(5,-5,20)
-                local yaw_command = -I:GetConstructYaw() - I:GetPropulsionRequest(5) * Leg.DirectionMod.x * 45
+                local t = I:GetGameTime()
+                local r = 10
+                local w = 0
+                local pos = Vector3(10,-5,20) + Vector3(math.sin(w*t)*r,0,math.cos(w*t)*r)
+                local yaw_command = -I:GetConstructYaw()
                 local velocity = I:GetVelocityVector()
-                local velocity_command = (1 - math.abs(I:GetPropulsionRequest(5)))*(-math.deg(math.atan2(velocity.x,velocity.z)))
-                --local rot = EulerToQuaternion(0,yaw_command + velocity_command,0)
-                local rot = EulerToQuaternion(0,yaw_command,0)
+                local speedup = math.min(1, velocity.magnitude/100)
+                if velocity.magnitude > 5 then 
+                    yaw_command = -math.deg(math.atan2(velocity.x,velocity.z))
+                end
+                local rot = EulerToMyOwnQuaternion(0,yaw_command,0)
                 Leg:MoveLeg(I,pos,rot)
+                Leg:Rudder(I,I:GetPropulsionRequest(5))
             end
 
             -- updates / controlls all LightAnimations
-            for _, Animation in pairs(ActiveAnimations) do
+            for index, Animation in pairs(ActiveAnimations) do
                 if Animation.Valid then
                     local PeriodTicks = 60
                     local BurnTicks = 2
                     local Intensity  = 10
-                    Animation:Range(I,4)
-                    Animation:Color(I,1,0.5,0)
                     Animation:Run(I,PeriodTicks,BurnTicks,Intensity)
+                    --Animation:Off(I)
+                    --table.remove(ActiveAnimations,index)
                 end
             end
         end
