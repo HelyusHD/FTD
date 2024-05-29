@@ -34,7 +34,9 @@ function MissilePredictionGuiadance(TargetInfo,LuaControlledMissileInfo,AimPoint
     local Aim = TargetPosition + TargetVelocity * InterceptionTime + TargetAcceleration / 2 * InterceptionTime^2 
     local AimLast = Aim + Vector3(Accuracy,0,0)
 
+    local step  = 0
     while Aim - AimLast > Accuracy and step <= MaxIterations do
+        step = step + 1
         Aim = TargetPosition + TargetVelocity * InterceptionTime + TargetAcceleration / 2 * InterceptionTime^2 
         InterceptionTime = (Aim - MissilePosition).magnitude / Vector3.Dot(MissileVelocity + MissileAcceleration*InterceptionTime, (Aim-MissilePosition).normalized)
     end

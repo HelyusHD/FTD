@@ -382,6 +382,7 @@
             for _, Id in pairs({"01","02"}) do
                 local MainAnimation = LightAnimation_(I,Leg.S5,Id)
                 local AnimationToAdd = LightAnimation_(I,Leg.S4,Id)
+                local DistanceOfAnimations = 5
                 MainAnimation:Link(I,AnimationToAdd,DistanceOfAnimations)
                 table.insert(Animations, MainAnimation)
                 table.insert(ActiveAnimations, MainAnimation)

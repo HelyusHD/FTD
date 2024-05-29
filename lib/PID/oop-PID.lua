@@ -5,10 +5,10 @@
 function PID()
     return {
         -- those are the attributes of the PID
-        Kg,
-        Ki,
-        Kd,
-        setpoint,
+        Kg = 0,
+        Ki = 0,
+        Kd = 0,
+        setpoint = 0,
         IMax =  1,
         IMin = -1,
         OutMax =  1,
