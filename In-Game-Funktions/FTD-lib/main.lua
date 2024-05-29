@@ -31,6 +31,8 @@ function I:merge(other)
 end
 
 I:merge(require("Logging_Debugging"))
-I:merge(require("Self-awareness"))
+I:merge(require("FTD.In-Game-Funktions.FTD-lib.Self_awareness"))
+I:merge(require("FTD-lib.Components"))
+I:merge(require("FTD-lib.Target_Info"))
 
 return I

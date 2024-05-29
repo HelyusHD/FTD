@@ -4,7 +4,7 @@ function I:Log(message)
 end
 
 function I:ClearLogs()
-    print("logs cleared")
+    print("ClearLogs()")
 end
 
 function I:LogToHud(message)
