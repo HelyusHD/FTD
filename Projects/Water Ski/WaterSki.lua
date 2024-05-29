@@ -517,11 +517,11 @@ InitTimeCounter = 0
                 local DistanceOfAnimations = 5
                 MainAnimation:Link(I,AnimationToAdd,DistanceOfAnimations)
                 MainAnimation:Range(I,6)
-                --MainAnimation:RainbowColors(I)
+                MainAnimation:RainbowColors(I)
                 MainAnimation.PeriodTicks = 80
                 MainAnimation.BurnTicks = 4
                 MainAnimation.Intensity = 10
-                MainAnimation:Color(I,1,0.5,0)
+                --MainAnimation:Color(I,1,0.5,0)
                 table.insert(Animations, MainAnimation)
                 table.insert(ActiveAnimations, MainAnimation)
             end
@@ -555,7 +555,6 @@ InitTimeCounter = 0
                 local pos = Vector3(10,-5,20) + Vector3(math.sin(w*t)*r,0,math.cos(w*t)*r)
                 local yaw_command = -I:GetConstructYaw()
                 local velocity = I:GetVelocityVector()
-                local speedup = math.min(1, velocity.magnitude/100)
                 if velocity.magnitude > 5 then 
                     yaw_command = -math.deg(math.atan2(velocity.x,velocity.z))
                 end
