@@ -356,7 +356,7 @@ end
             MissileData[MissileInfo.Id].LaunchPosition = Position
             MissileData[MissileInfo.Id].m_apt_InitialPlaneDistance = m_apt_PlaneDistance
         else
-            local x = MissileData[MissileInfo.Id].m_apt_InitialPlaneDistance /2
+            local x = 1 - m_apt_PlaneDistance / MissileData[MissileInfo.Id].m_apt_InitialPlaneDistance -- progress of the flight from 0 tp 1
             local height = AimPointPosition.y + 0
         end
     end

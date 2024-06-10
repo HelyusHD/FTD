@@ -32,7 +32,7 @@ InitTimeCounter = 0
 
     MyOwnQuaternion = {}
     MyOwnQuaternion.__index = MyOwnQuaternion
-    
+
     -- MyOwnQuaternion constructor
     function MyOwnQuaternion.new(w, x, y, z)
         local self = setmetatable({}, MyOwnQuaternion)
@@ -45,7 +45,7 @@ InitTimeCounter = 0
         end
         return self
     end
-    
+
     -- MyOwnQuaternion * MyOwnQuaternion multiplication
     function MyOwnQuaternion:__mul(other)
         if getmetatable(other) == MyOwnQuaternion then
@@ -69,7 +69,7 @@ InitTimeCounter = 0
             local num10 = self.w * num
             local num11 = self.w * num2
             local num12 = self.w * num3
-    
+
             return Vector3(
                 (1 - (num5 + num6)) * other.x + (num7 - num12) * other.y + (num8 + num11) * other.z,
                 (num7 + num12) * other.x + (1 - (num4 + num6)) * other.y + (num9 - num10) * other.z,
@@ -92,31 +92,31 @@ InitTimeCounter = 0
         local y = quaternion.x
         local z = quaternion.z
         local w = quaternion.w
-        
+
         -- Calculate the Euler angles from the quaternion
         local ysqr = y * y
-    
+
         -- Roll (x-axis rotation)
         local t0 = 2 * (w * x + y * z)
         local t1 = 1 - 2 * (x * x + ysqr)
         local roll = math.atan2(t0, t1)
-    
+
         -- Pitch (y-axis rotation)
         local t2 = 2 * (w * y - z * x)
         if t2 > 1 then t2 = 1 end
         if t2 < -1 then t2 = -1 end
         local pitch = math.asin(t2)
-    
+
         -- Yaw (z-axis rotation)
         local t3 = 2 * (w * z + x * y)
         local t4 = 1 - 2 * (ysqr + z * z)
         local yaw = math.atan2(t3, t4)
-    
+
         -- Convert from radians to degrees
         roll = roll * 180 / math.pi
         pitch = pitch * 180 / math.pi
         yaw = yaw * 180 / math.pi
-    
+
         return Vector3(pitch, roll, yaw)
     end
 
@@ -134,7 +134,7 @@ InitTimeCounter = 0
         local qy = math.cos(rx / 2) * math.cos(ry / 2) * math.sin(rz / 2) - math.sin(rx / 2) * math.sin(ry / 2) * math.cos(rz / 2)
         local qz = math.sin(rx / 2) * math.cos(ry / 2) * math.cos(rz / 2) - math.cos(rx / 2) * math.sin(ry / 2) * math.sin(rz / 2)
         local qw = math.cos(rx / 2) * math.cos(ry / 2) * math.cos(rz / 2) + math.sin(rx / 2) * math.sin(ry / 2) * math.sin(rz / 2)
-        
+
         return MyOwnQuaternion.new(qw,qx,qy,qz)
     end
 
@@ -253,7 +253,7 @@ InitTimeCounter = 0
             a = MyOwnQuaternion.new(a.w,a.x,a.y,a.z)
             local euler = quaternionToEuler(rot * (a))
 
-            
+
             I:SetSpinBlockRotationAngle(self.S3, -euler.z)
             I:SetSpinBlockRotationAngle(self.S2, -euler.x)
             I:SetSpinBlockRotationAngle(self.S1, -euler.y)
@@ -490,9 +490,8 @@ InitTimeCounter = 0
         return LA
     end
 
-
 --||| INITS
-    --creates Leg_ objects for each spinner found named "LEG"
+    -- creates Leg_ objects for each spinner found named "LEG"
     function Init(I)
         InitLegsDone = true
         InitLightsDone = true
@@ -505,6 +504,7 @@ InitTimeCounter = 0
                 S5 = {min = -50, max = 70}, -- extreme angles for S5
                 S4 = {min =  30, max = 180} -- extreme angles for S4
             }
+
             local RestingPosition = {
                 S6 = 0,
                 S5 = Limits.S5.max,
@@ -528,6 +528,7 @@ InitTimeCounter = 0
             table.insert(Legs, Leg)
         end
     end
+
 --||| UPDATE
 
     -- Master function organising / controlling the project
