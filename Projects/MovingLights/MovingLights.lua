@@ -1,3 +1,15 @@
+--||| SETTINGS
+    MovingLightsSettings = {
+    --  SubconstructIdentifier  Identifier  AnimationName
+        {0,                     "01",       "Animation_01"}
+    }
+
+    AnimationSettings = {
+    --  PeriodTicks BurnTicks   Intensity   Name
+        {80,        4,          10,         "Animation_01"}
+    }
+
+--|||Math/Useful lib
     ---Enumerations for Logging purposes
     ERROR = 0
     WARNING = 1
@@ -7,13 +19,32 @@
     VECTORS = 5
     DebugLevel = SYSTEM
 
--- calculates the perpendicular distance from a point to a line defined by two points in 3D space.
-function DistanceFromPointToLine(point, linePoint1, linePoint2)
-    local lineDirection = linePoint2 - linePoint1 
-    local distance = Vector3.Cross(lineDirection, point - linePoint1).magnitude / lineDirection.magnitude
-    return distance
-end
+    -- a better log function
+    FinalMessage = ""
+    function MyLog(I,priority,Message)
+        if priority <= DebugLevel then
+            if FinalMessage == "" then
+                FinalMessage = Message
+            else
+                FinalMessage = FinalMessage.."\n"..Message
+            end
+            I:ClearLogs()
+            I:Log(FinalMessage)
+        end
+    end
+    function ClearMyLogs(I)
+        FinalMessage = ""
+        I:ClearLogs()
+    end
 
+    -- calculates the perpendicular distance from a point to a line defined by two points in 3D space.
+    function DistanceFromPointToLine(point, linePoint1, linePoint2)
+        local lineDirection = linePoint2 - linePoint1 
+        local distance = Vector3.Cross(lineDirection, point - linePoint1).magnitude / lineDirection.magnitude
+        return distance
+    end
+
+--||| CLASSES
     -- creates a Light_ object
     -- index: its BlockIndex
     -- pos: its local position
@@ -68,12 +99,13 @@ end
     -- the SubConstructIdentifier (the space placed in) and
     -- the Id (a number appearing in the light fitting names)
     -- only the end points need to be named
+    -- the general idea is, that I am moving a point through space which turns on close lights for a fixed duration
     function LightAnimation_(I,SubConstructIdentifier,Id)
-        local type = 30
+        local type = 30 -- the component type used by some in game funktions
         local LA = {
             Start = -1, -- index of start light
             End   = -1, -- index of end light
-            Progress = 0,
+            Progress = 0, -- [0,1] an animation runs from 0% to 100% progress. then it repeats
             TotalDistance = 0, -- ditance from start to end
             Lights = {}, -- list of al lights being part of the animation
             ActiveLights = {}, -- list of updated lights
@@ -224,60 +256,41 @@ end
         return LA
     end
 
--- finds all LightAnimations
-function InitLights(I)
-    InitLightsDone = true
-    local Animations = {}
-    local SubConstructIdentifier = 0
-    local Id = "01"
-    local Animation_01 = LightAnimation_(I,SubConstructIdentifier,Id)
-    MyLog(I,SYSTEM,"SYSTEM:   Animation_01 has "..tostring(#Animation_01.Lights).." lights")
-    table.insert(Animations,Animation_01)
-    return Animations
-end
-
--- updates / controlls all LightAnimations
-function UpdateLights(I)
-    for _, Animation in pairs(Animations) do
-        --Animation:Off(I)
-        local PeriodTicks = 80
-        local BurnTicks = 4
-        local Intensity  = 10
-        Animation:Range(I,1)
-        Animation:Color(I,1,0,0)
-        Animation:Run(I,PeriodTicks,BurnTicks,Intensity)
+--||| INIT
+    -- finds all LightAnimations
+    function InitLights(I)
+        InitLightsDone = true
+        local Animations = {}
+        local SubConstructIdentifier = 0
+        local Id = "01"
+        local Animation_01 = LightAnimation_(I,SubConstructIdentifier,Id)
+        MyLog(I,SYSTEM,"SYSTEM:   Animation_01 has "..tostring(#Animation_01.Lights).." lights")
+        table.insert(Animations,Animation_01)
+        return Animations
     end
-end
 
--- master function
-function LightAnimations(I)
-    if InitLightsDone ~= true then
-        Animations = InitLights(I)
-        MyLog(I,SYSTEM,"SYSTEM:   found "..tostring(#Animations).." light animations")
-    else
-        UpdateLights(I)
-    end
-end
-
--- a better log function
-FinalMessage = ""
-function MyLog(I,priority,Message)
-    if priority <= DebugLevel then
-        if FinalMessage == "" then
-            FinalMessage = Message
-        else
-            FinalMessage = FinalMessage.."\n"..Message
+--||| UPDATE
+    -- updates / controlls all LightAnimations
+    function UpdateLights(I)
+        for _, Animation in pairs(Animations) do
+            --Animation:Off(I)
+            Animation:Range(I,1)
+            Animation:Color(I,1,0,0)
+            Animation:Run(I)
         end
-        I:ClearLogs()
-        I:Log(FinalMessage)
     end
-end
-function ClearMyLogs(I)
-    FinalMessage = ""
-    I:ClearLogs()
-end
 
--- is called by the game to update this code
-function Update(I)
-    LightAnimations(I)
-end
+    -- master function
+    function LightAnimations(I)
+        if InitLightsDone ~= true then
+            Animations = InitLights(I)
+            MyLog(I,SYSTEM,"SYSTEM:   found "..tostring(#Animations).." light animations")
+        else
+            UpdateLights(I)
+        end
+    end
+
+    -- is called by the game to update this code
+    function Update(I)
+        LightAnimations(I)
+    end
