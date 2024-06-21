@@ -1,15 +1,16 @@
 --||| SETTINGS
-    MovingLightsSettings = {
-    --  SubconstructIdentifier  Identifier  AnimationName
-        {0,                     "01",       "Animation_01"}
+    GeneralSettings = {
+    --  SubConId  Identifier  AnimationName   LinkId  Distance    LoopOffset
+        {0,       "01",       "Animation_01", "1",     ,          1},
+        {0,       "02",       "Animation_01", "1",    3,          }
     }
 
     AnimationSettings = {
     --  PeriodTicks BurnTicks   Intensity   Name
-        {80,        4,          10,         "Animation_01"}
+        {100,        5,          10,         "Animation_01"}
     }
 
---|||Math/Useful lib
+--||| Math/Useful lib
     ---Enumerations for Logging purposes
     ERROR = 0
     WARNING = 1
@@ -115,7 +116,10 @@
             Id = Id,
             PeriodTicks = 100,
             BurnTicks = 10,
-            Intensity = 10
+            Intensity = 10,
+            LoopOffset = 0, -- fixes the jump from the end lamp to the first lamp by setting the progress to < 0
+            LinkId = nil, -- used to link animations
+            DistanceOfAnimations = nil -- used to add delay between linked animations
         }
         local LightsOnSubConstruct = {}
         for index = 0, I:Component_GetCount(type)-1 do
@@ -154,13 +158,14 @@
         -- BurnTicks: how long a light stays on
         -- Intensity: [0,10]
         LA.Run = function(self,I)
+            local LoopOffset = self.LoopOffset
             local TotalDistance = self.TotalDistance
             local TravelSpeed = TotalDistance/self.PeriodTicks
 
             if self.Progress <= TotalDistance + TravelSpeed then
                 self.Progress = self.Progress + TravelSpeed
             else
-                self.Progress = self.Progress + TravelSpeed - TotalDistance
+                self.Progress = self.Progress + TravelSpeed - TotalDistance - LoopOffset
             end
 
             local ClosestLights = self.Lights
@@ -169,7 +174,7 @@
             end)
             if ClosestLights[1].index ~= self.ClosestLightLast.index then
                 if ClosestLights[1].index == self.Start then
-                    ClosestLights[1]:On(I,self.BurnTicks/2,self.Intensity)
+                    ClosestLights[1]:On(I,self.BurnTicks,self.Intensity)
                     table.insert(self.ActiveLights,ClosestLights[1])
                 else
                     ClosestLights[1]:On(I,self.BurnTicks,self.Intensity)
@@ -203,7 +208,7 @@
             
             local shift = 0
             if speed ~= nil and speed ~= 0 then
-                shift = I:GetGameTime % speed / speed
+                shift = I:GetGameTime() % speed / speed
             end
             
             for _, light in pairs(self.Lights) do
@@ -236,19 +241,19 @@
             end
         end
         -- adds a animation to this animation
-        LA.Link = function(self,I,Animation,DistanceOfAnimations)
+        LA.Link = function(self,I,Animation)
             MyLog(I,SYSTEM,"System:   linking animation")
-            if DistanceOfAnimations == nil then
-                DistanceOfAnimations = (I:Component_GetBlockInfo(type,self.End).Position - I:Component_GetBlockInfo(type,Animation.Start).Position).magnitude
+            if Animation.DistanceOfAnimations == nil then
+                Animation.DistanceOfAnimations = (I:Component_GetBlockInfo(type,self.End).Position - I:Component_GetBlockInfo(type,Animation.Start).Position).magnitude
             end
             local AdditionalLights = Animation.Lights
             for key, Light in pairs(AdditionalLights) do
                 -- shifts new lights ahead in order
-                AdditionalLights[key].order = AdditionalLights[key].order + DistanceOfAnimations + self.TotalDistance
+                AdditionalLights[key].order = AdditionalLights[key].order + Animation.DistanceOfAnimations + self.TotalDistance
                 -- adds new lights
                 table.insert(self.Lights,AdditionalLights[key])
             end
-            self.TotalDistance = self.TotalDistance + Animation.TotalDistance + DistanceOfAnimations
+            self.TotalDistance = self.TotalDistance + Animation.TotalDistance + Animation.DistanceOfAnimations
             self.End = Animation.End
         end
 
@@ -257,15 +262,44 @@
     end
 
 --||| INIT
-    -- finds all LightAnimations
+    -- creates the LightAnimations
     function InitLights(I)
         InitLightsDone = true
         local Animations = {}
-        local SubConstructIdentifier = 0
-        local Id = "01"
-        local Animation_01 = LightAnimation_(I,SubConstructIdentifier,Id)
-        MyLog(I,SYSTEM,"SYSTEM:   Animation_01 has "..tostring(#Animation_01.Lights).." lights")
-        table.insert(Animations,Animation_01)
+        -- loading animations based on settings
+        for _, GeneralSetting in pairs(GeneralSettings) do
+            for _, AnimationSetting in pairs(AnimationSettings) do
+                local matched = false
+                if GeneralSetting[3] == AnimationSetting[4] then
+                    matched = true
+                    local Animation = LightAnimation_(I,GeneralSetting[1],GeneralSetting[2])
+                    if Animation.Valid then
+                        Animation.PeriodTicks = AnimationSetting[1]
+                        Animation.BurnTicks = AnimationSetting[2]
+                        Animation.Intensity = AnimationSetting[3]
+                        Animation.LinkId = GeneralSetting[4]
+                        Animation.DistanceOfAnimations = GeneralSetting[5]
+                        Animation.LoopOffset = GeneralSetting[6] or 0
+                        MyLog(I,SYSTEM,"SYSTEM:   Animation_01 has "..tostring(#Animation.Lights).." lights")
+                        table.insert(Animations,Animation)
+                    end
+                end
+                if not matched then
+                    MyLog(I,WARNING,"WARNING:   Animation named \""..tostring(GeneralSetting[3]).."\" has no AnimationSetting")
+                end
+            end
+        end
+        -- linking animations based on settings
+        for Master_AnimationID, Master_Animation in pairs(Animations) do
+            if Master_Animation.LinkId ~= nil then
+                for Slave_AnimationID, Slave_Animation in pairs(Animations) do
+                    if Slave_Animation.LinkId == Master_Animation.LinkId and Master_AnimationID ~= Slave_AnimationID then
+                        Master_Animation:Link(I,Slave_Animation)
+                        Animations[Slave_AnimationID] = nil
+                    end
+                end
+            end
+        end
         return Animations
     end
 
