@@ -1,13 +1,46 @@
+--||| MANUAL
+    --[[
+    Thx for using my code!
+    There are two different sets of settings you have to understand in order to use this code correctly.
+    The FIRST set will define what lmaps should be used in a specific animation.
+    The SECOND set is responsible for telling the lamps what to do.
+        For example how bright they should be or for how long they should burn
+
+    You can only add lamps to a animation, that are paced on the same SubConstruct.
+    The first setting SubConName will attempt to create a animation on each subconstruct named that way.
+    If your lights are placed on the craft itself and not on a spinner or smth like that, you can use "CRAFT" to refer to the craft itself.
+    Because there may be multiple animations in the same construct space, you have to give each animation its own Identifier.
+
+    There are code words you can use to link lamps to a system.
+    Each lamp WITH A CODE WORD has to contain the Identifier as well.
+        "start" and "end" can be used to link all lamps in between a starting and a end point.
+
+    You can link 2 animations together. This will cause the second animation to start once the first one is finished.
+        All animations with the same LinkId will be chained going from top to bottom.
+        You can add the Distance (in blocks) to a linked animation.
+        This will cause it to delay its start by the time it would take the animation to travel this distance.
+        If you leave it blank, the delay will be calculated based on the real distance between the animations.
+        The master animation, all animations get linked to, may have a LoopOffset,
+        which is a delay for the animation to start all over again after it is finished.
+
+    Now that you know how to tell the system what lmaps to use, lets talk about how those lamps will actually behave.
+    Maybe you niticed the setting "AniationName". This setting is responsible for telling the selected lamps what animation to use.
+        PeriodTicks is the time in ticks (40 ticks = 1 second) it should take a animaion to finishe.
+        BurnTicks is the time each lamp will stay turned on.
+        Intensity is the brightness of the lamps.
+        Color are the RGB (red green blue) settings for the lamps.
+    ]]
+
 --||| SETTINGS
     GeneralSettings = {
-    --  SubConId  Identifier  AnimationName   LinkId  Distance    LoopOffset
-        {0,       "01",       "Animation_01", "1",     ,          1},
-        {0,       "02",       "Animation_01", "1",    3,          }
+    --  SubConName      Identifier  AnimationName   LinkId  Distance    LoopOffset
+        {"CRAFT",       "01",       "Animation_01", "1",     ,          1},
+        {"CRAFT",       "02",       "Animation_01", "1",    3,          }
     }
 
     AnimationSettings = {
-    --  PeriodTicks BurnTicks   Intensity   Name
-        {100,        5,          10,         "Animation_01"}
+    --  PeriodTicks BurnTicks   Intensity   AnimationName   Color
+        {100,       5,          10,        "Animation_01",  {1,0,0}}
     }
 
 --||| Math/Useful lib
@@ -43,6 +76,28 @@
         local lineDirection = linePoint2 - linePoint1 
         local distance = Vector3.Cross(lineDirection, point - linePoint1).magnitude / lineDirection.magnitude
         return distance
+    end
+
+    -- output LIST: {SubConstructIdentifier1, SubConstructIdentifier2, SubConstructIdentifier3, ...}
+    -- returns a list of all subconstructs with condition:
+    -- <CodeWord> is part of CustomName
+    function FindAllSubconstructs(I, CodeWord)
+        -- can return the id of the craft itself, which is always 0
+        if CodeWord == "CRAFT" then return {0} end
+
+        local ChosenSubconstructs = {}
+        local SubconstructsCount = I:GetAllSubconstructsCount()
+        for index = 0, SubconstructsCount-1 do
+            local SubConstructIdentifier = I:GetSubConstructIdentifier(index)
+            if I:GetSubConstructInfo(SubConstructIdentifier).Valid then
+                if string.find(I:GetSubConstructInfo(SubConstructIdentifier).CustomName, CodeWord) then
+                    table.insert(ChosenSubconstructs, SubConstructIdentifier)
+                end
+            else
+                --ERROR
+            end
+        end
+        return ChosenSubconstructs
     end
 
 --||| CLASSES
@@ -269,23 +324,33 @@
         -- loading animations based on settings
         for _, GeneralSetting in pairs(GeneralSettings) do
             for _, AnimationSetting in pairs(AnimationSettings) do
-                local matched = false
+                local matched_AnimationSetting = false
+                local matched_SubconstructName = false
                 if GeneralSetting[3] == AnimationSetting[4] then
-                    matched = true
-                    local Animation = LightAnimation_(I,GeneralSetting[1],GeneralSetting[2])
-                    if Animation.Valid then
-                        Animation.PeriodTicks = AnimationSetting[1]
-                        Animation.BurnTicks = AnimationSetting[2]
-                        Animation.Intensity = AnimationSetting[3]
-                        Animation.LinkId = GeneralSetting[4]
-                        Animation.DistanceOfAnimations = GeneralSetting[5]
-                        Animation.LoopOffset = GeneralSetting[6] or 0
-                        MyLog(I,SYSTEM,"SYSTEM:   Animation_01 has "..tostring(#Animation.Lights).." lights")
-                        table.insert(Animations,Animation)
+                    matched_AnimationSetting = true
+                    -- finding all subconstructs fitting the name
+                    for _, SubConstructIdentifier in pairs(FindAllSubconstructs(I, GeneralSetting[1])) do
+                        matched_SubconstructName = true
+                        local Animation = LightAnimation_(I,GeneralSetting[1],GeneralSetting[2])
+                        if Animation.Valid then
+                            Animation.PeriodTicks = AnimationSetting[1]
+                            Animation.BurnTicks = AnimationSetting[2]
+                            Animation.Intensity = AnimationSetting[3]
+                            local RGB = AnimationSetting[4]
+                            Animation:Color(I,RGB[1], RGB[2], RGB[3])
+                            Animation.LinkId = GeneralSetting[4]
+                            Animation.DistanceOfAnimations = GeneralSetting[5]
+                            Animation.LoopOffset = GeneralSetting[6] or 0
+                            MyLog(I,SYSTEM,"SYSTEM:   Animation_01 has "..tostring(#Animation.Lights).." lights")
+                            table.insert(Animations,Animation)
+                        end
                     end
                 end
-                if not matched then
+                if not matched_AnimationSetting then
                     MyLog(I,WARNING,"WARNING:   Animation named \""..tostring(GeneralSetting[3]).."\" has no AnimationSetting")
+                end
+                if not matched_SubconstructName then
+                    MyLog(I,WARNING,"WARNING:   Animation named \""..tostring(GeneralSetting[3]).."\" has no correct named Subconstruct")
                 end
             end
         end
