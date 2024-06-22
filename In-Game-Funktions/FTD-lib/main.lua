@@ -34,5 +34,6 @@ I:merge(require("Logging_Debugging"))
 I:merge(require("FTD.In-Game-Funktions.FTD-lib.Self_awareness"))
 I:merge(require("FTD-lib.Components"))
 I:merge(require("FTD-lib.Target_Info"))
+I:merge(require("FTD-lib.SubConstructs"))
 
 return I
