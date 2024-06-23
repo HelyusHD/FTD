@@ -1,10 +1,11 @@
 --||| MANUAL
     --[[
     Thx for using my code!
-    There are two different sets of settings you have to understand in order to use this code correctly.
+    There are three different sets of settings you have to understand in order to use this code correctly.
     The FIRST set will define what lmaps should be used in a specific animation.
     The SECOND set is responsible for telling the lamps what to do.
         For example how bright they should be or for how long they should burn
+    The THIRD set will define when the animation should be running.
 
     You can only add lamps to a animation, that are paced on the same SubConstruct.
     The first setting SubConName will attempt to create a animation on each subconstruct named that way.
@@ -19,9 +20,9 @@
         All animations with the same LinkId will be chained going from top to bottom.
         You can add the Distance (in blocks) to a linked animation.
         This will cause it to delay its start by the time it would take the animation to travel this distance.
-        If you leave it blank, the delay will be calculated based on the real distance between the animations.
+        If you set it to -1, the delay will be calculated based on the real distance between the animations.
         The master animation, all animations get linked to, may have a LoopOffset,
-        which is a delay for the animation to start all over again after it is finished.
+        which is a delay (in blocks) for the animation to start all over again after it is finished.
 
     Now that you know how to tell the system what lmaps to use, lets talk about how those lamps will actually behave.
     Maybe you niticed the setting "AniationName". This setting is responsible for telling the selected lamps what animation to use.
@@ -34,24 +35,29 @@
 --||| SETTINGS
     GeneralSettings = {
     --  SubConName      Identifier  AnimationName   LinkId  Distance    LoopOffset
-        {"CRAFT",       "01",       "Animation_01", "1",     ,          1},
-        {"CRAFT",       "02",       "Animation_01", "1",    3,          }
+        {"CRAFT",       "01",       "Animation_01", "1",    0,         10},
+        {"CRAFT",       "02",       "Animation_01", "1",    -1,         0}
     }
 
     AnimationSettings = {
-    --  PeriodTicks BurnTicks   Intensity   AnimationName   Color
-        {100,       5,          10,        "Animation_01",  {1,0,0}}
+    --  PeriodTicks BurnTicks   Intensity   Range   AnimationName       Color
+        {80,        7,          10,         2,     "Animation_01",     {1,0,0}}
+    }
+
+    ControllSettings = {
+    --  AnimationName   controll
+        {"Animation_01","test 01"}
     }
 
 --||| Math/Useful lib
     ---Enumerations for Logging purposes
-    ERROR = 0
-    WARNING = 1
-    SYSTEM = 2
-    UPDATE = 3
-    LISTS = 4
-    VECTORS = 5
-    DebugLevel = SYSTEM
+        ERROR = 0
+        WARNING = 1
+        SYSTEM = 2
+        UPDATE = 3
+        LISTS = 4
+        VECTORS = 5
+        DebugLevel = SYSTEM
 
     -- a better log function
     FinalMessage = ""
@@ -159,9 +165,10 @@
     function LightAnimation_(I,SubConstructIdentifier,Id)
         local type = 30 -- the component type used by some in game funktions
         local LA = {
+            AnimationId = -1, -- the Id of the animation / the key in the list Animations
             Start = -1, -- index of start light
             End   = -1, -- index of end light
-            Progress = 0, -- [0,1] an animation runs from 0% to 100% progress. then it repeats
+            Progress = 0, -- [0,TotalDistance] an animation runs from 0m to TotalDistance. then it repeats
             TotalDistance = 0, -- ditance from start to end
             Lights = {}, -- list of al lights being part of the animation
             ActiveLights = {}, -- list of updated lights
@@ -172,10 +179,14 @@
             PeriodTicks = 100,
             BurnTicks = 10,
             Intensity = 10,
+            Range = 10,
             LoopOffset = 0, -- fixes the jump from the end lamp to the first lamp by setting the progress to < 0
             LinkId = nil, -- used to link animations
-            DistanceOfAnimations = nil -- used to add delay between linked animations
+            DistanceOfAnimations = -1, -- used to add delay between linked animations
+            controll_channel = "", -- name of a custom channel that can be used to run the animation
+            running = false
         }
+        -- loading end point lights
         local LightsOnSubConstruct = {}
         for index = 0, I:Component_GetCount(type)-1 do
             local BlockInfo = I:Component_GetBlockInfo(type,index)
@@ -187,7 +198,7 @@
                 end
             end
         end
-
+        -- loading lights between end points if end points could be loaded
         if LA.Start ~= -1 and LA.End ~= -1 then
             LA.Valid = true
             local Start_pos = I:Component_GetBlockInfo(type,LA.Start).LocalPosition
@@ -204,7 +215,7 @@
                 return a.order < b.order
             end)
         else
-            MyLog(I,SYSTEM,"SYSTEM:   Animation "..Id.." on SubConstruct"..SubConstructIdentifier.." cant be loaded")
+            MyLog(I,SYSTEM,"SYSTEM:   Animation "..Id.." on SubConstruct "..SubConstructIdentifier.." cant be loaded")
             return LA
         end
 
@@ -212,11 +223,12 @@
         -- PeriodTicks: ticks to travel from start to end and
         -- BurnTicks: how long a light stays on
         -- Intensity: [0,10]
-        LA.Run = function(self,I)
+        LA.Run = function(self,I,Id)
             local LoopOffset = self.LoopOffset
             local TotalDistance = self.TotalDistance
             local TravelSpeed = TotalDistance/self.PeriodTicks
 
+            -- loops the animation once 
             if self.Progress <= TotalDistance + TravelSpeed then
                 self.Progress = self.Progress + TravelSpeed
             else
@@ -242,7 +254,7 @@
             self.ClosestLightLast = ClosestLights[1]
         end
 
-        -- turn all lights off
+        -- turns all lights off
         LA.Off = function(self,I)
             for _, light in pairs(self.Lights) do
                 light:Off(I)
@@ -290,15 +302,15 @@
         end
 
         -- sets the range of all lights [1,50]
-        LA.Range = function(self,I,Range)
+        LA.SetRange = function(self,I)
             for _, light in pairs(self.Lights) do
-                light:Range(I,Range)
+                light:Range(I,self.Range)
             end
         end
         -- adds a animation to this animation
         LA.Link = function(self,I,Animation)
             MyLog(I,SYSTEM,"System:   linking animation")
-            if Animation.DistanceOfAnimations == nil then
+            if Animation.DistanceOfAnimations == -1 then
                 Animation.DistanceOfAnimations = (I:Component_GetBlockInfo(type,self.End).Position - I:Component_GetBlockInfo(type,Animation.Start).Position).magnitude
             end
             local AdditionalLights = Animation.Lights
@@ -312,6 +324,26 @@
             self.End = Animation.End
         end
 
+        -- starts and stops the animation
+        LA.ControllStart = function(self,I,Id)
+            local drive = I:GetCustomAxis(self.controll_channel)
+            MyLog(I,SYSTEM,"SYSTEM:   running: "..tostring(self.running).." drive: "..tostring(drive))
+            if drive == 1 and not self.running then
+                MyLog(I,SYSTEM,"SYSTEM:   Now animating animation: "..Id)
+                self.running = true
+                -- copies the animation into an updated list that keeps it running.
+                table.insert(ActiveAnimations,self)
+            end
+        end
+        LA.ControllEnd = function(self,I,Id)
+            local drive = I:GetCustomAxis(self.controll_channel)
+            if drive == 0 then
+                LA:Off(I)
+                Animations[self.AnimationId].running = false
+                ActiveAnimations[Id] = nil
+            end
+        end
+
         LA:Off(I)
         return LA
     end
@@ -321,30 +353,42 @@
     function InitLights(I)
         InitLightsDone = true
         local Animations = {}
-        -- loading animations based on settings
+        ActiveAnimations = {}
         for _, GeneralSetting in pairs(GeneralSettings) do
+            -- loading animations from settings
             for _, AnimationSetting in pairs(AnimationSettings) do
                 local matched_AnimationSetting = false
                 local matched_SubconstructName = false
-                if GeneralSetting[3] == AnimationSetting[4] then
+                local matched_ControllSettings = false
+                if GeneralSetting[3] == AnimationSetting[5] then
                     matched_AnimationSetting = true
                     -- finding all subconstructs fitting the name
                     for _, SubConstructIdentifier in pairs(FindAllSubconstructs(I, GeneralSetting[1])) do
                         matched_SubconstructName = true
-                        local Animation = LightAnimation_(I,GeneralSetting[1],GeneralSetting[2])
+                        local Animation = LightAnimation_(I,SubConstructIdentifier,GeneralSetting[2])
                         if Animation.Valid then
                             Animation.PeriodTicks = AnimationSetting[1]
                             Animation.BurnTicks = AnimationSetting[2]
                             Animation.Intensity = AnimationSetting[3]
-                            local RGB = AnimationSetting[4]
+                            Animation.Range = AnimationSetting[4]
+                            Animation:SetRange(I)
+                            local RGB = AnimationSetting[6]
                             Animation:Color(I,RGB[1], RGB[2], RGB[3])
                             Animation.LinkId = GeneralSetting[4]
                             Animation.DistanceOfAnimations = GeneralSetting[5]
                             Animation.LoopOffset = GeneralSetting[6] or 0
+                            -- loading controls from settings
+                            for _, ControllSetting in pairs(ControllSettings) do
+                                if GeneralSetting[3] == ControllSetting[1] then
+                                    Animation.controll_channel = ControllSetting[2]
+                                    break
+                                end
+                            end
                             MyLog(I,SYSTEM,"SYSTEM:   Animation_01 has "..tostring(#Animation.Lights).." lights")
                             table.insert(Animations,Animation)
                         end
                     end
+                    break --once we found a AnimationSetting, we break out of the loop
                 end
                 if not matched_AnimationSetting then
                     MyLog(I,WARNING,"WARNING:   Animation named \""..tostring(GeneralSetting[3]).."\" has no AnimationSetting")
@@ -365,17 +409,24 @@
                 end
             end
         end
+        for AnimationId, Animation in pairs(Animations) do
+            Animation.AnimationId = AnimationId
+        end
         return Animations
     end
 
 --||| UPDATE
     -- updates / controlls all LightAnimations
     function UpdateLights(I)
-        for _, Animation in pairs(Animations) do
-            --Animation:Off(I)
-            Animation:Range(I,1)
-            Animation:Color(I,1,0,0)
-            Animation:Run(I)
+        for Id, Animation in pairs(Animations) do
+            Animation:ControllStart(I,Id) -- waits for controlls to copy animation into ActiveAnimations
+        end
+        -- keeps active animations running
+        MyLog(I,SYSTEM,"SYSTEM:   "..#ActiveAnimations.." active animations")
+        for Id, Animation in pairs(ActiveAnimations) do
+            MyLog(I,SYSTEM,"SYSTEM:   animating animation: "..Id)
+            Animation:Run(I,Id)
+            Animation:ControllEnd(I,Id)
         end
     end
 
@@ -391,5 +442,6 @@
 
     -- is called by the game to update this code
     function Update(I)
+        ClearMyLogs(I)
         LightAnimations(I)
     end
