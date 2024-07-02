@@ -415,7 +415,7 @@
         return Animations
     end
 
---||| UPDATE
+--||| UPDATE4
     -- updates / controlls all LightAnimations
     function UpdateLights(I)
         for Id, Animation in pairs(Animations) do
