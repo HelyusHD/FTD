@@ -7,7 +7,7 @@
         For example how bright they should be or for how long they should burn
     The THIRD set will define when the animation should be running.
 
-    You can only add lamps to a animation, that are paced on the same SubConstruct.
+    You can only add lamps to a animation, that are placed on the same SubConstruct.
     The first setting SubConName will attempt to create a animation on each subconstruct named that way.
     If your lights are placed on the craft itself and not on a spinner or smth like that, you can use "CRAFT" to refer to the craft itself.
     Because there may be multiple animations in the same construct space, you have to give each animation its own Identifier.
